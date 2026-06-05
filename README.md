@@ -2,7 +2,9 @@
 
 ## Project Goal
 
-This project simulates the time evolution of a two-qubit spin-chain model. The first stage uses NumPy and SciPy to perform exact statevector simulation. Later stages will translate the same model into Qiskit circuits and compare exact evolution with Trotterized circuit evolution.
+This project simulates the time evolution of a two-qubit spin-chain model. It contains two completed implementations: a NumPy/SciPy exact statevector simulation and a Qiskit circuit-based statevector simulation.
+
+The final project scope is limited to exact NumPy simulation and Qiskit statevector simulation. It does not include Qiskit Aer backends, noise models, shot-based sampling, or Trotter error analysis.
 
 The main goal is to build a small but complete quantum simulation workflow:
 
@@ -11,7 +13,7 @@ The main goal is to build a small but complete quantum simulation workflow:
 - compute time evolution
 - calculate expectation values
 - plot and interpret the results
-- later reproduce the same model using Qiskit
+- reproduce the same model using Qiskit statevector circuits
 
 ## Model
 
@@ -44,7 +46,7 @@ The current observables are:
 
 ### Reason to Start with NumPy
 
-Although the final goal of this project is to simulate the model using Qiskit, the NumPy simulation provides an exact reference result for the Qiskit simulation later.
+Although the project also implements the model using Qiskit, the NumPy simulation provides an exact reference result for the Qiskit simulation.
 
 In the NumPy stage, the two-qubit quantum state is represented directly as a four-dimensional statevector. The Hamiltonian is represented as a `4x4` matrix, and the time-evolution operator is computed directly as:
 
@@ -60,7 +62,6 @@ Therefore, the NumPy result is used as the reference answer:
 
 - NumPy gives the exact matrix-exponential result.
 - Qiskit translates the same time evolution into a circuit-based simulation.
-- Later Trotterized circuits can be compared against the NumPy exact result to measure approximation error.
 
 In short, the NumPy stage answers what the Qiskit simulation should reproduce.
 
@@ -126,26 +127,6 @@ figures/Qiskit_Simulation
 ```
 
 This stage uses the same model, initial states, and observables as the NumPy exact simulation. The script also checks that the Qiskit circuit results match the direct matrix-exponential reference within numerical tolerance.
-
-## Optional Future Work: Trotter Error Analysis
-
-Trotter error analysis is not required for the current learning goal of this repository. It is a possible extension if I want to study how Hamiltonian time evolution can be approximated by splitting the evolution into smaller circuit steps.
-
-The basic idea would be to compare the exact evolution
-
-```text
-exp[-i(A + B)t]
-```
-
-with a Trotterized approximation such as
-
-```text
-[exp(-iA t/r) exp(-iB t/r)]^r
-```
-
-where `r` is the number of Trotter steps. Increasing `r` usually makes the approximation closer to the exact result, but it also makes the circuit longer.
-
-For this project, the Trotter stage would be a follow-up topic rather than part of the current completed scope.
 
 ## How to Run
 
@@ -217,16 +198,17 @@ python -c "import numpy, scipy, matplotlib, qiskit; print('environment ok')"
 
 ## Requirements
 
-Current and planned project requirements:
+Project requirements:
 
 - `numpy`
 - `scipy`
 - `matplotlib`
 - `qiskit`
-- `qiskit-aer`
 
-The current NumPy stage only uses `numpy`, `scipy`, and `matplotlib`. The Qiskit packages are included now so the same environment can also run the upcoming circuit and Trotter stages.
+The NumPy exact simulation uses `numpy`, `scipy`, and `matplotlib`. The Qiskit circuit simulation uses the core `qiskit` package and `Statevector` simulation from `qiskit.quantum_info`.
 
-## Next Steps
+`qiskit-aer` is not required because this project does not use `qiskit_aer`, `AerSimulator`, noise models, or shot-based execution.
 
-- Compare exact and Trotterized time evolution.
+## Project Completed
+
+NumPy exact simulation provides the reference result, and the Qiskit circuit simulation reproduces the same dynamics within numerical tolerance.
