@@ -117,4 +117,5 @@ for fig, output_path in figures_to_save:
     fig.savefig(output_path, dpi=200)
     print(f"Saved {output_path}")
 
-plt.show()
+if plt.get_backend().lower() != "agg":
+    plt.show()
