@@ -292,6 +292,6 @@ NumPy exact simulation provides the reference result, and the Qiskit circuit sim
 The current project is complete within its intended scope. Possible local extensions that are not included in this version are:
 
 - Trotter error analysis for comparing exact evolution with product-formula approximations.
-- Simple shot-style sampling from statevector probabilities.
-- Parameter sweeps over `J`, `h`, and total evolution time.
+- Parameter sweeps over different `J`, `h`, and total evolution time.
 - Extension from two qubits to small spin chains.
+- Additional observables, such as entanglement entropy or state fidelity.
