@@ -42,7 +42,7 @@ INITIAL_STATES = {
 
 TIMES = np.linspace(0, 10, 200)
 TOL = 1e-10
-OUTPUT_DIR = Path(__file__).resolve().parent.parent / "figures" / "Qiskit_Simulation"
+OUTPUT_DIR = Path(__file__).resolve().parent.parent / "figures" / "qiskit_statevector"
 
 
 def computational_basis_circuit(state_bits):

@@ -1,13 +1,26 @@
 # Learning Notes
 
-This file records the learning process, development boundaries, and engineering decisions behind this two-qubit Hamiltonian simulation project.
+This file records the learning process and conceptual understanding behind this two-qubit Hamiltonian simulation project. It focuses on what was learned and how the model is understood, rather than on Git or repository-management details.
 
-The project is a compact exercise in quantum simulation and scientific Python. It implements the same physical model in two forms:
+The project implements the same physical model in two forms:
 
 - direct NumPy/SciPy matrix-exponential evolution
 - Qiskit circuit construction with statevector simulation
 
-## Project Snapshot
+## Learning Goal
+
+The main learning goal was to understand a complete small-scale quantum simulation workflow:
+
+- how a Hamiltonian defines the dynamics of a quantum system
+- how a two-qubit state can be represented as a statevector
+- how time evolution is calculated from `exp(-iHt)`
+- how expectation values connect the evolved state to observable quantities
+- how the same dynamics can be represented in Qiskit using circuits and Pauli operators
+- how to check that two implementations are describing the same physics
+
+This project was intentionally kept small so that every step could be inspected directly. With only two qubits, the statevector has four components and the Hamiltonian is a `4x4` matrix, which makes the model suitable for learning and verification.
+
+## Model Understanding
 
 The simulated Hamiltonian is:
 
@@ -23,54 +36,75 @@ with:
 - time grid `np.linspace(0, 10, 200)`
 - observables `<Z0>`, `<Z1>`, and `<Z0Z1>`
 
-The completed project scope is NumPy exact simulation plus Qiskit statevector circuit simulation. It intentionally does not include Qiskit Aer backends, noise models, shot-based execution, real hardware execution, or Trotter error analysis.
+My understanding of each term is:
 
-## What This Project Demonstrates
+- `Z0Z1` describes interaction between the two qubits. It distinguishes aligned states from anti-aligned states in the computational basis.
+- `X0 + X1` describes a transverse field acting on each qubit. Since `X` flips computational-basis states, this term drives nontrivial time evolution instead of leaving the basis states fixed.
+- `J` controls the interaction strength, while `h` controls the transverse-field strength.
 
-The project shows how to:
+The model is symmetric under exchanging qubit 0 and qubit 1. This symmetry explains why `|01>` and `|10>` produce related curves with `<Z0>` and `<Z1>` interchanged.
 
-- define a two-qubit spin-chain Hamiltonian
-- represent quantum states as statevectors
-- compute exact time evolution using a matrix exponential
-- calculate expectation values for single-qubit and two-qubit observables
-- reproduce the same dynamics using a Qiskit circuit representation
-- validate the Qiskit result against a direct matrix-exponential reference
-- save generated plots for each initial state
+## NumPy Exact Simulation Understanding
 
-The NumPy implementation is the reference calculation because it directly evaluates:
+The NumPy implementation is the reference calculation. It directly constructs:
+
+- Pauli matrices `I`, `X`, `Y`, and `Z`
+- tensor-product operators such as `X0`, `X1`, `Z0`, `Z1`, and `Z0Z1`
+- the Hamiltonian matrix `H`
+- the time-evolution operator
+
+The core calculation is:
 
 ```text
 U(t) = exp(-iHt)
+psi(t) = U(t) psi(0)
 ```
 
-The Qiskit implementation expresses the same Hamiltonian dynamics as a circuit using `SparsePauliOp`, `PauliEvolutionGate`, and `Statevector`.
+This helped me connect the mathematical formula for quantum time evolution with executable scientific Python code. It also made clear why NumPy/SciPy is useful as a reference: for a two-qubit system, the full matrix calculation is small, direct, and numerically reliable.
 
-## Repository Contents
+## Qiskit Statevector Simulation Understanding
 
-The repository is organized around a small reproducible workflow:
+The Qiskit implementation represents the same Hamiltonian dynamics in circuit form. It uses:
 
-- `scripts/Two_qubit_Numpy_evolution.py`: builds the Pauli matrices, Hamiltonian, exact evolution operator, expectation values, numerical checks, and NumPy output plots
-- `scripts/Two_qubit_Qiskit_circuit.py`: builds the Qiskit Hamiltonian, circuit evolution, statevector simulation, exact reference comparison, numerical checks, and Qiskit output plots
-- `figures/Numpy_Simulation/`: stores PNG outputs from the NumPy script
-- `figures/Qiskit_Simulation/`: stores PNG outputs from the Qiskit script
-- `requirements.txt`: lists the Python dependencies used by the project
-- `environment.yml`: defines a Conda environment entry point that installs from `requirements.txt`
-- `README.md`: provides the main public-facing project description
-- `LEARNING_NOTES.md`: documents the learning process, AI-assistance boundaries, and engineering takeaways
+- `SparsePauliOp` to define the Hamiltonian and observables
+- `PauliEvolutionGate` to express time evolution as a circuit operation
+- `Statevector` to simulate the resulting circuit state
 
-## Validation Approach
+This stage helped me understand the difference between a matrix-based simulation and a circuit-based simulation. The Qiskit version still runs on a classical computer, but it expresses the model using objects closer to quantum-circuit language.
 
-The main validation goal is not only to produce plots, but also to verify that the implementations are numerically consistent.
+The important idea is that Qiskit is not used here for noisy hardware-style execution. It is used to reproduce the same statevector dynamics in a circuit representation.
+
+## Observables and Plot Interpretation
+
+The project calculates three observables:
+
+- `<Z0>(t)`: the Z-direction expectation value of qubit 0
+- `<Z1>(t)`: the Z-direction expectation value of qubit 1
+- `<Z0Z1>(t)`: a two-qubit correlation observable
+
+These observables make the state evolution easier to interpret. Instead of only looking at the full statevector, the plots show how measurable quantities change over time.
+
+The initial value of `<Z0Z1>` separates aligned and anti-aligned states:
+
+- `|00>` and `|11>` start with `<Z0Z1> = +1`
+- `|01>` and `|10>` start with `<Z0Z1> = -1`
+
+During evolution, the transverse-field term causes the expectation values to oscillate. The plotted curves therefore show both the interaction structure and the effect of the transverse field.
+
+## Validation Understanding
+
+The main validation goal is not only to produce plots, but to show that the two implementations agree numerically.
 
 Both scripts use a tolerance of `1e-10`.
 
-The NumPy script checks:
+The checks include:
 
-- statevector norm preservation for each initial state
-- symmetry between `<Z0>` and `<Z1>` for the aligned initial states `|00>` and `|11>`
-- swap symmetry between the anti-aligned initial states `|01>` and `|10>`
+- statevector norm preservation
+- symmetry between `<Z0>` and `<Z1>` for `|00>` and `|11>`
+- swap symmetry between `|01>` and `|10>`
+- Qiskit-vs-matrix-reference agreement for `<Z0>`, `<Z1>`, and `<Z0Z1>`
 
-The Qiskit script checks the same properties and also compares the circuit statevector results against a direct matrix-exponential reference for `<Z0>`, `<Z1>`, and `<Z0Z1>` across all four initial states.
+The Qiskit script compares its circuit statevector result with a direct matrix-exponential reference. This is the most important numerical check because it verifies that the circuit representation is reproducing the same Hamiltonian dynamics as the exact reference implementation.
 
 The expected success messages are:
 
@@ -79,60 +113,55 @@ Numerical checks passed.
 Qiskit circuit numerical checks passed.
 ```
 
-These checks make the project more than a plotting script: they provide a clear numerical link between the exact reference implementation and the Qiskit implementation.
+This validation step helped me understand that a useful simulation project should not rely only on visual plots. It should also contain explicit checks that can fail when the implementation is inconsistent.
 
 ## AI-Assisted Development Boundaries
 
-AI assistance was used in a limited and explicit way. In this project, AI refers to OpenAI Codex.
-
-The AI-assisted parts were:
+AI assistance was used in a limited and explicit way. The AI-assisted parts were:
 
 - generating and modifying the NumPy exact simulation code
 - generating and modifying the Qiskit statevector simulation code
-- helping construct the initial project structure and documentation framework
+- constructing the initial project structure and documentation framework
 
-The author completed the remaining work independently:
+The following work was completed by the author:
 
-- learning the required background concepts in Hamiltonian time evolution, statevectors, expectation values, Pauli operators, and Qiskit circuit representation
-- deciding the final project scope: NumPy exact simulation plus Qiskit statevector simulation
-- deciding not to include Aer, noise models, shot-based execution, real hardware execution, or Trotter analysis in the completed scope
-- reviewing, revising, and finalizing the documentation content
-- checking that the README and learning notes matched the actual repository behavior
-- reviewing, testing, and editing the AI-assisted code and project structure
-- creating and managing the Git repository
-- performing Git commits, uploads, and repository publication or sharing steps
+- learning the background concepts needed to understand Hamiltonian time evolution, statevectors, expectation values, Pauli operators, and Qiskit circuit representation
+- deciding the completed scope of the project
+- reviewing, testing, and editing the AI-assisted code
+- interpreting the output plots and numerical checks
+- revising and finalizing the documentation content
+- deciding which dependencies and future extensions were appropriate for this local project
+
+Version-control setup and upload were completed by the author, but they are not the main focus of these learning notes. The focus here is on conceptual understanding, implementation review, and validation.
 
 The author takes responsibility for the final implementation, results, documentation, and repository content.
 
-## Author Work and Engineering Skills Demonstrated
+## Learning and Understanding Demonstrated
 
-This project demonstrates that the author can turn a small scientific computing goal into a structured and reproducible repository.
+This project demonstrates the author's ability to:
 
-The author's work included understanding the physical model, interpreting the Hamiltonian terms, connecting the matrix-based NumPy reference with the Qiskit circuit representation, and ensuring that the generated outputs matched the intended simulation scope.
+- understand a compact quantum physics model and explain the role of each Hamiltonian term
+- connect mathematical time evolution with concrete NumPy/SciPy code
+- understand how Qiskit represents Pauli operators, evolution gates, and statevectors
+- use an exact reference implementation to validate a second implementation
+- reason about symmetry as a correctness check
+- interpret expectation-value plots rather than treating them as black-box output
+- limit project scope to a reproducible and verifiable result
+- use AI-generated code critically by reviewing, testing, editing, and documenting it
 
-The project demonstrates several practical engineering abilities:
-
-- translating a mathematical model into executable scientific code
-- separating an exact reference implementation from a second implementation used for comparison
-- using numerical checks rather than relying only on visual plots
-- managing dependencies through `requirements.txt` and `environment.yml`
-- keeping unused dependencies, such as `qiskit-aer`, out of the final environment
-- organizing source scripts, generated figures, and documentation clearly
-- documenting scope limits so future readers know what is included and what is not
-- using Git to manage, commit, and upload the project
-- using AI assistance transparently while retaining author review and responsibility
+The project therefore demonstrates both learning of the underlying quantum-simulation concepts and practical understanding of how to turn those concepts into a working computational workflow.
 
 ## Scope Control
 
-A key engineering decision was to keep the completed scope small and verifiable.
+A key learning outcome was understanding why the project should remain focused.
 
-The project does not attempt to include every possible Qiskit feature. Instead, it focuses on one complete workflow:
+The completed scope is:
 
 ```text
 NumPy exact result -> Qiskit statevector result -> numerical comparison -> plots
 ```
 
-This makes the project easier to review, reproduce, and extend later.
+The project intentionally does not include Qiskit Aer backends, noise models, shot-based execution, real hardware execution, or Trotter error analysis in the completed version. Excluding these topics keeps the project easier to verify and makes the learning outcome clearer.
 
 ## Possible Local Extensions
 
@@ -143,6 +172,6 @@ The following extensions are possible on a local development machine, but are no
 - extension from two qubits to small spin chains
 - additional observables, such as entanglement entropy or state fidelity
 
-## Final Scope
+## Final Summary
 
-The completed scope is NumPy exact simulation plus Qiskit statevector simulation. The project provides a reference result, reproduces it with Qiskit circuits, validates the numerical agreement, and records the workflow in a reproducible repository.
+This project shows a complete learning path from a simple Hamiltonian model to two working simulations and numerical validation. The NumPy implementation provides the exact reference result, while the Qiskit implementation reproduces the same dynamics through statevector circuit simulation.

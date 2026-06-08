@@ -32,7 +32,7 @@ initial_states = {
     "|11>": np.array([0, 0, 0, 1], dtype=complex),
 }
 
-output_dir = Path(__file__).resolve().parent.parent / "figures" / "Numpy_Simulation"
+output_dir = Path(__file__).resolve().parent.parent / "figures" / "numpy_exact"
 output_dir.mkdir(parents=True, exist_ok=True)
 plt.rcParams["savefig.directory"] = str(output_dir)
 
