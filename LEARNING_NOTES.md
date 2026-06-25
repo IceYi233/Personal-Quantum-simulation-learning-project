@@ -7,16 +7,16 @@ The project implements the same physical model in two forms:
 - direct NumPy/SciPy matrix-exponential evolution
 - Qiskit circuit construction with statevector simulation
 
-## Learning Goal
+## Project Content
 
-The main learning goal was to understand a complete small-scale quantum simulation workflow:
+This project focuses on a small two-qubit Hamiltonian simulation. The main content includes:
 
-- how a Hamiltonian defines the dynamics of a quantum system
-- how a two-qubit state can be represented as a statevector
-- how time evolution is calculated from `exp(-iHt)`
-- how expectation values connect the evolved state to observable quantities
-- how the same dynamics can be represented in Qiskit using circuits and Pauli operators
-- how to check that two implementations are describing the same physics
+- Hamiltonian-based time evolution for a two-qubit quantum system
+- statevector representation of the four computational-basis states
+- exact matrix-exponential simulation with NumPy/SciPy
+- expectation-value calculation for single-qubit and two-qubit observables
+- Qiskit statevector circuit simulation of the same model
+- comparison between the matrix-based reference and the Qiskit circuit representation
 
 This project was intentionally kept small so that every step could be inspected directly. With only two qubits, the statevector has four components and the Hamiltonian is a `4x4` matrix, which makes the model suitable for learning and verification.
 
@@ -36,11 +36,78 @@ with:
 - time grid `np.linspace(0, 10, 200)`
 - observables `<Z0>`, `<Z1>`, and `<Z0Z1>`
 
-My understanding of each term is:
+The single-qubit computational basis states are `|0>` and `|1>`. For two qubits, the computational basis is:
 
-- `Z0Z1` describes interaction between the two qubits. It distinguishes aligned states from anti-aligned states in the computational basis.
-- `X0 + X1` describes a transverse field acting on each qubit. Since `X` flips computational-basis states, this term drives nontrivial time evolution instead of leaving the basis states fixed.
+```text
+|00>, |01>, |10>, |11>
+```
+
+A general two-qubit state can be written as:
+
+```text
+|ψ> = a|00> + b|01> + c|10> + d|11>
+```
+
+where `a`, `b`, `c`, and `d` are complex amplitudes. The values `|a|^2`, `|b|^2`, `|c|^2`, and `|d|^2` are the probabilities of measuring the corresponding computational-basis states.
+
+In a two-qubit system, single-qubit operators are extended to the four-dimensional state space using tensor products:
+
+```text
+Z0 = Z tensor I
+Z1 = I tensor Z
+X0 = X tensor I
+X1 = I tensor X
+Z0Z1 = Z tensor Z
+```
+
+Here `Z0` acts on the first qubit and `Z1` acts on the second qubit. Similarly, `X0` flips the first qubit and `X1` flips the second qubit.
+
+My understanding of the Hamiltonian is that its two parts have different roles:
+
+- `Z0Z1` defines the aligned and anti-aligned structure in the Z basis.
+- `X0 + X1` drives amplitude flow among computational-basis states by flipping one qubit at a time.
 - `J` controls the interaction strength, while `h` controls the transverse-field strength.
+
+The action of `Z` on a single qubit is:
+
+```text
+Z|0> = +|0>
+Z|1> = -|1>
+```
+
+Therefore, the `Z0Z1` term acts on the computational-basis states as:
+
+```text
+Z0Z1|00> = +|00>
+Z0Z1|11> = +|11>
+Z0Z1|01> = -|01>
+Z0Z1|10> = -|10>
+```
+
+This means `|00>` and `|11>` are aligned states, while `|01>` and `|10>` are anti-aligned states. In this sense, `Z0Z1` can be understood as a Z-direction correlation operator.
+
+The action of `X` on a single qubit is:
+
+```text
+X|0> = |1>
+X|1> = |0>
+```
+
+For two-qubit case, it turns:
+
+```text
+X0|00> = |10>
+X1|00> = |01>
+(X0 + X1)|00> = |10> + |01>
+```
+
+This means that an initial amplitude in the `|00>` direction can flow into the `|10>` and `|01>` directions during time evolution. More generally, `X0 + X1` connects each computational-basis state to states that differ by flipping exactly one qubit.
+
+The expectation values are used to read out the effect of this evolution in the Z basis:
+
+- `<Z0>(t)` reflects whether the first qubit is biased toward `|0>` or `|1>`.
+- `<Z1>(t)` reflects the same information for the second qubit.
+- `<Z0Z1>(t)` indicates whether the two qubits are overall aligned or anti-aligned.
 
 The model is symmetric under exchanging qubit 0 and qubit 1. This symmetry explains why `|01>` and `|10>` produce related curves with `<Z0>` and `<Z1>` interchanged.
 
@@ -53,11 +120,13 @@ The NumPy implementation is the reference calculation. It directly constructs:
 - the Hamiltonian matrix `H`
 - the time-evolution operator
 
+The initial implementation was developed with AI assistance, then reviewed and revised while checking it against the mathematical form of the model.
+
 The core calculation is:
 
 ```text
 U(t) = exp(-iHt)
-psi(t) = U(t) psi(0)
+ψ(t) = U(t) ψ(0)
 ```
 
 This helped me connect the mathematical formula for quantum time evolution with executable scientific Python code. It also made clear why NumPy/SciPy is useful as a reference: for a two-qubit system, the full matrix calculation is small, direct, and numerically reliable.
@@ -69,6 +138,8 @@ The Qiskit implementation represents the same Hamiltonian dynamics in circuit fo
 - `SparsePauliOp` to define the Hamiltonian and observables
 - `PauliEvolutionGate` to express time evolution as a circuit operation
 - `Statevector` to simulate the resulting circuit state
+
+The Qiskit implementation was also developed with AI assistance, then reviewed against the NumPy reference and the intended project scope.
 
 This stage helped me understand the difference between a matrix-based simulation and a circuit-based simulation. The Qiskit version still runs on a classical computer, but it expresses the model using objects closer to quantum-circuit language.
 
@@ -91,69 +162,9 @@ The initial value of `<Z0Z1>` separates aligned and anti-aligned states:
 
 During evolution, the transverse-field term causes the expectation values to oscillate. The plotted curves therefore show both the interaction structure and the effect of the transverse field.
 
-## Validation Understanding
-
-The main validation goal is not only to produce plots, but to show that the two implementations agree numerically.
-
-Both scripts use a tolerance of `1e-10`.
-
-The checks include:
-
-- statevector norm preservation
-- symmetry between `<Z0>` and `<Z1>` for `|00>` and `|11>`
-- swap symmetry between `|01>` and `|10>`
-- Qiskit-vs-matrix-reference agreement for `<Z0>`, `<Z1>`, and `<Z0Z1>`
-
-The Qiskit script compares its circuit statevector result with a direct matrix-exponential reference. This is the most important numerical check because it verifies that the circuit representation is reproducing the same Hamiltonian dynamics as the exact reference implementation.
-
-The expected success messages are:
-
-```text
-Numerical checks passed.
-Qiskit circuit numerical checks passed.
-```
-
-This validation step helped me understand that a useful simulation project should not rely only on visual plots. It should also contain explicit checks that can fail when the implementation is inconsistent.
-
-## AI-Assisted Development Boundaries
-
-AI assistance was used in a limited and explicit way. The AI-assisted parts were:
-
-- generating and modifying the NumPy exact simulation code
-- generating and modifying the Qiskit statevector simulation code
-- constructing the initial project structure and documentation framework
-
-The following work was completed by the author:
-
-- learning the background concepts needed to understand Hamiltonian time evolution, statevectors, expectation values, Pauli operators, and Qiskit circuit representation
-- deciding the completed scope of the project
-- reviewing, testing, and editing the AI-assisted code
-- interpreting the output plots and numerical checks
-- revising and finalizing the documentation content
-- deciding which dependencies and future extensions were appropriate for this local project
-
-Version-control setup and upload were completed by the author, but they are not the main focus of these learning notes. The focus here is on conceptual understanding, implementation review, and validation.
-
-The author takes responsibility for the final implementation, results, documentation, and repository content.
-
-## Learning and Understanding Demonstrated
-
-This project demonstrates the author's ability to:
-
-- understand a compact quantum physics model and explain the role of each Hamiltonian term
-- connect mathematical time evolution with concrete NumPy/SciPy code
-- understand how Qiskit represents Pauli operators, evolution gates, and statevectors
-- use an exact reference implementation to validate a second implementation
-- reason about symmetry as a correctness check
-- interpret expectation-value plots rather than treating them as black-box output
-- limit project scope to a reproducible and verifiable result
-- use AI-generated code critically by reviewing, testing, editing, and documenting it
-
-The project therefore demonstrates both learning of the underlying quantum-simulation concepts and practical understanding of how to turn those concepts into a working computational workflow.
-
 ## Scope Control
 
-A key learning outcome was understanding why the project should remain focused.
+The project keeps the completed scope focused on one small and verifiable workflow.
 
 The completed scope is:
 
@@ -172,6 +183,6 @@ The following extensions are possible on a local development machine, but are no
 - extension from two qubits to small spin chains
 - additional observables, such as entanglement entropy or state fidelity
 
-## Final Summary
+## Summary
 
 This project shows a complete learning path from a simple Hamiltonian model to two working simulations and numerical validation. The NumPy implementation provides the exact reference result, while the Qiskit implementation reproduces the same dynamics through statevector circuit simulation.
