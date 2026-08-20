@@ -8,41 +8,37 @@
 \usepackage{placeins}
 \usepackage[hidelinks]{hyperref}
 
-\newcommand{\ket}[1]{\left|#1\right\rangle}
-\newcommand{\ev}[1]{\left\langle #1 \right\rangle}
+\newcommand{\absv}[1]{\left| #1 \right|} % absolute value
+\newcommand{\nm}[1]{\left| #1 \right|^2} % norm
+\newcommand{\bra}[1]{\left\langle #1 \right|} % bra
+\newcommand{\ket}[1]{\left| #1 \right\rangle} % ket
+\newcommand{\braket}[2]{\left\langle #1 \middle| #2 \right\rangle} % braket
+\newcommand{\cmt}[2]{\left[#1 , #2\right] } % commutator
+\newcommand{\ev}[1]{\left\langle #1 \right\rangle} % Expectation value
 \setlength{\parindent}{0pt}
 
 \title{Learning Notes: Two-Qubit Hamiltonian Simulation}
-\author{QClp-Qiskit Project}
-
+\author{Yutong Liu}
 \begin{document}
 
 \maketitle
 
 \begin{abstract}
-These notes summarize the learning process behind a two-qubit Hamiltonian
-simulation project. The project compares a direct NumPy/SciPy exact
-statevector simulation with a Qiskit circuit-based statevector simulation.
-The focus is on understanding the model, the role of each Hamiltonian term,
-the meaning of the observables, and the numerical checks used to validate the
-two implementations.
+These notes summarize the learning process behind a two-qubit Hamiltonian simulation project. The project compares a direct NumPy/SciPy exact statevector simulation with a Qiskit circuit-based statevector simulation. The focus is on understanding the model, the role of each Hamiltonian term, the meaning of the observables, and the numerical checks used to validate the two implementations.
 \end{abstract}
 
 \section{Project Content}
 
-This project focuses on a small two-qubit Hamiltonian simulation. The main
-content includes:
+This project focuses on a small two-qubit Hamiltonian simulation. The main content includes:
 \begin{itemize}
-  \item Time evolution for a two-qubit quantum system based on Hamiltonian.
+  \item Time evolution for a two-qubit quantum system based on a Hamiltonian.
   \item Statevector representation of the four basis states.
   \item Exact matrix-exponential simulation with NumPy/SciPy.
-  \item Expectation-value calculation and observation.
+  \item expectation value calculation and observation.
   \item Statevector circuit simulation with Qiskit.
   \item Comparison between the matrix-based reference result and the Qiskit circuit representation.
 \end{itemize}
-With only two qubits, the statevector has four components and the Hamiltonian
-is a $4 \times 4$ matrix. This makes the system suitable for direct learning,
-debugging, and numerical verification.
+With only two qubits, the statevector has four components and the Hamiltonian is a $4 \times 4$ matrix. This makes the system suitable for direct learning, debugging, and numerical verification.
 
 
 \vspace{\baselineskip}
@@ -50,32 +46,53 @@ debugging, and numerical verification.
 
 \section{Two-Qubit State Representation}
 \subsection{Computational Basis}
-The single-qubit basis states are $\ket{0}$ and $\ket{1}$. For two qubits, the  basis are
+The single-qubit basis states are $\ket{0}$ and $\ket{1}$. For two qubits, the computational basis states are
 \begin{align*}
-  \ket{00} \, ,\quad \ket{01} \, ,\quad \ket{10} \, ,\quad \ket{11} \, .
+  \ket{00} \,,\quad \ket{01} \,,\quad \ket{10} \,,\quad \ket{11} \,.
 \end{align*}
-a general two-qubit state can be written as
+A general two-qubit state can be written as
 \begin{align*}
-    \ket{\psi} = a\ket{00} + b\ket{01} + c\ket{10} + d\ket{11} \, , \quad
-    \text{where }\, a \, , b \, , c \, , d \,\in \mathbb{C}
+    \ket{\psi} = a\ket{00} + b\ket{01} + c\ket{10} + d\ket{11} \,, \quad
+    \text{where }\, a \,, b \,, c \,, d \,\in \mathbb{C}
 \end{align*}
-and the squared norms of these amplitudes $|a|^2$, $|b|^2$, $|c|^2$, and $|d|^2$ stand for the probabilities of measuring the corresponding basis states.\\
+and the squared norms of these amplitudes $\nm{a}$, $\nm{b}$, $\nm{c}$, and $\nm{d}$ stand for the probabilities of measuring the corresponding basis states.
+In this project, we suppose that all statevectors are normalized; hence we have:
+\begin{align*}
+    \nm{a} + \nm{b} + \nm{c} + \nm{d} = 1 \,.
+\end{align*}
 
-In two-qubit system, $\ket{00}$ and $\ket{11}$ have two qubits in the same direction, these two basis states are called \textbf{aligned states}, while $\ket{01}$ and $\ket{10}$ are called \textbf{anti-aligned states} for they have two qubits in the different direction.
-
-\vspace{\baselineskip}
+In a two-qubit system, $\ket{00}$ and $\ket{11}$ have two qubits in the same direction; these two basis states are called \textbf{aligned states}, while $\ket{01}$ and $\ket{10}$ are called \textbf{anti-aligned states} because they have two qubits in the opposite directions.
 
 \subsection{Tensor-Product Operators}
-For two-qubit system, single-qubit operators are extended to the four-dimensional state space using tensor products. 
+Let $X$ and $Z$ be the single-qubit Pauli matrices and let $I$ be the identity operator.
 
-Let $X$ and $Z$ be Pauli matrices in single-qubit system, and let $I$ be the identity operator, then we have:
-\begin{gather*}
-    Z_0 = Z \otimes I \, , \qquad
-    Z_1 = I \otimes Z \, , \qquad
-    Z_0Z_1 = Z \otimes Z \, .\\
-    X_0 = X \otimes I \, , \qquad
-    X_1 = I \otimes X \, . 
-\end{gather*}
+For a two-qubit system, single-qubit operators are extended to the four-dimensional state space using tensor products. The same operators are written in three different ways below: as Qiskit labels, tensor products, and the notation used in these notes.
+\begin{gather}
+  \texttt{ZI} = Z \otimes I = Z_0\,,\qquad
+  \texttt{IZ} = I \otimes Z = Z_1\,,\qquad
+  \texttt{ZZ} = Z \otimes Z = Z_0Z_1\,, \label{Z_tnsr_prd}\\
+  \texttt{XI} = X \otimes I = X_0\,,\qquad
+  \texttt{IX} = I \otimes X = X_1\,. \label{X_tnsr_prd}
+\end{gather}
+
+Generally, Qiskit writes a two-qubit basis state as $\ket{q_1q_0}$\,, where $q_1$ is the left bit, and $q_0$ is the right bit. The left character of a two-qubit Pauli label acts on $q_1$, while the right character acts on $q_0$, which are:
+\begin{align*}
+  \texttt{XI/ZI}&: X/Z \text{ acts on Qiskit } q_1\,, &
+  \texttt{IX/IZ}&: X/Z \text{ acts on Qiskit } q_0\,.
+\end{align*}
+
+This project uses a different labeling convention: the basis is written as $\ket{q_0q_1}$, with $q_0$ on the left and $q_1$ on the right. Consequently, the same Qiskit Pauli labels are interpreted in this project as follows:
+\begin{align*}
+  \texttt{XI/ZI}&: X/Z \text{ acts on } q_0\,, &
+  \texttt{IX/IZ}&: X/Z \text{ acts on } q_1\,.
+\end{align*}
+Relative to Qiskit's convention, the labels in this project are mapped as
+\begin{align*}
+  q_0\, (\text{project})  &\longleftrightarrow q_1\, (\text{Qiskit})\,, &
+  q_1\, (\text{project})  &\longleftrightarrow q_0\, (\text{Qiskit})\,.
+\end{align*}
+
+Accordingly, $Z_0$ and $X_0$ act on the left logical qubit $q_0$, whereas $Z_1$ and $X_1$ act on the right logical qubit $q_1$. The Hamiltonian, state-evolution equations, and observables below use this tensor-product notation.
 
 
 \vspace{\baselineskip}
@@ -84,112 +101,142 @@ Let $X$ and $Z$ be Pauli matrices in single-qubit system, and let $I$ be the ide
 \section{Hamiltonian Model}
 In this project, the Hamiltonian is
 \begin{align*}
-  H = J Z_0 Z_1 + h(X_0 + X_1),
+  H = J Z_0 Z_1 + h(X_0 + X_1) \,,
 \end{align*}
 with parameters
 \begin{align*}
-  J = 1.0,\qquad h = 0.5.
+  J = 1.0 \,,\quad h = 0.5 \,.
 \end{align*}
-The project studies the four initial states
-\begin{align*}
-  \ket{00} \, , \quad \ket{01} \, , \quad \ket{10} \, , \quad \ket{11} \, ,
-\end{align*}
-on the time grid \texttt{np.linspace(0, 10, 200)}.
-
-Denote $H_Z := J Z_0 Z_1$ and  $H_X := h(X_0 + X_1)$\,, then $H = H_Z + H_X$.
+where $J$ is the interaction strength, determining how strongly the Hamiltonian distinguishes between the two states whether the two qubits are aligned or anti-aligned. $h$ is the transverse-field strength, determining how strongly each qubit tends to flip.
 
 \vspace{\baselineskip}
 
-\subsection{Role of the $H_Z$ Term}
-For a single-qubit system, the $Z$ gate (operator) distinguishes the qubit's orientation in the Z-basis:
+The simulation in this project uses the convention $\hbar=1$. In physical units, the Schrödinger equation would be written as
 \begin{align*}
-  Z\ket{0} = +\ket{0} \, ,\qquad Z\ket{1} = -\ket{1} \, ,
+  i\hbar\frac{d}{dt}\ket{\psi(t)} = H_{phy}\ket{\psi(t)} \,.
+\end{align*}
+After dividing by $\hbar$, this becomes
+\begin{align*}
+  i\frac{d}{dt}\ket{\psi(t)} = \frac{H_{phy}}{\hbar}\ket{\psi(t)}\,,
+\end{align*}
+and the Hamiltonian used in this simulation can be understood as
+\begin{align*}
+  H = \frac{H_{phy}}{\hbar}\,.
+\end{align*}
+For this reason, the parameters $J$ and $h$ have units of inverse time, while the time interval $\Delta t$ has units of time.
+
+The project studies the four initial states
+\begin{align*}
+  \ket{00} \,, \quad \ket{01} \,, \quad \ket{10} \,, \quad \ket{11} \,,
+\end{align*}
+on the time grid \texttt{np.linspace(0, 10, 200)}.
+
+Denote $H_Z := J Z_0 Z_1$ and  $H_X := h(X_0 + X_1)$\,, then $H = H_Z + H_X$\,.
+
+\subsection{Hamiltonian Construction and State Evolution}
+The Hamiltonian in this project is time-independent. It does not have an explicit time dependence such as $H(t)$. Instead, a fixed Hamiltonian $H$ generates a time-dependent state $\ket{\psi(t)}$.
+
+Using the tensor-product operators from \eqref{X_tnsr_prd} and \eqref{Z_tnsr_prd}\,, the Hamiltonian can be written as
+\begin{gather*}
+  H = J Z_0 Z_1 + h(X_0 + X_1) = J(Z \otimes Z) + h(X \otimes I + I \otimes X) \,, \\
+  H_Z = J(Z \otimes Z) \,, \qquad H_X = h(X \otimes I + I \otimes X) \,.
+\end{gather*}
+Because this is a two-qubit system, each tensor-product operator is a $4 \times 4$ matrix, so $H$ is also a $4 \times 4$ Hermitian matrix.
+
+With $\hbar=1$, the state satisfies the time-dependent Schrödinger equation (TDSE)
+\begin{align*}
+  i\frac{d}{dt}\ket{\psi(t)} = H\ket{\psi(t)} \,.
+\end{align*}
+For a time-independent Hamiltonian, the solution is
+\begin{align*}
+  \ket{\psi(t)} = e^{-iHt}\ket{\psi(0)} \,.
+\end{align*}
+Equivalently, the time-evolution operator is
+\begin{align*}
+  U(t) = e^{-iHt} \,, \quad  \ket{\psi(t)} = U(t)\ket{\psi(0)} \,.
+\end{align*}
+
+In this project, this evolution is applied separately to each computational basis initial state, and the plotted curves are then calculated from these time-evolved states.
+
+\subsection{Role of the \texorpdfstring{$H_Z$}{H\_Z} Term}
+For a single-qubit system, the $Z$ operator leaves $\ket{0}$ unchanged and adds a minus sign to $\ket{1}$:
+\begin{align*}
+  Z\ket{0} = +\ket{0} \,, \quad Z\ket{1} = -\ket{1} \,,
 \end{align*}
 so the $Z_0Z_1$ term defines the aligned and anti-aligned structure in the
 $Z$ basis:
 \begin{align*}
-  Z_0Z_1\ket{00} &= +\ket{00} \, , &
-  Z_0Z_1\ket{11} &= +\ket{11} \, , \\
-  Z_0Z_1\ket{01} &= -\ket{01} \, , &
-  Z_0Z_1\ket{10} &= -\ket{10} \, .
+  Z_0Z_1\ket{00} &= +\ket{00} \,, &
+  Z_0Z_1\ket{11} &= +\ket{11} \,, \\
+  Z_0Z_1\ket{01} &= -\ket{01} \,, &
+  Z_0Z_1\ket{10} &= -\ket{10} \,.
 \end{align*}
 It's clear that for aligned states $\ket{00}$ and $\ket{11}$\,, $Z_0Z_1$ assigns them the eigenvalue $+1$\,, while for anti-aligned states $\ket{01}$ and $\ket{10}$\,, $Z_0Z_1$ assigns them $-1$\,. 
-The results imply that the operator $Z_0Z_1$ detects whether the two qubits are aligned or anti-aligned, thereby turning two independent qubits into an interacting two-qubit spin system.
-In this sense, $Z_0Z_1$ can be understood as a $Z$-direction correlation operator.
+As an observable, $Z_0Z_1$ distinguishes aligned and anti-aligned configurations in the $Z$ basis. When included in the Hamiltonian as the term $JZ_0Z_1$, it represents a two-qubit interaction. In this sense, $Z_0Z_1$ can also be understood as a $Z$-direction correlation operator.
 
-\vspace{\baselineskip}
-
-\subsection{Role of the $H_X$ Term}
+\subsection{Role of the \texorpdfstring{$H_X$}{H\_X} Term}
 For a single-qubit system, the $X$ gate (operator) swaps the $\ket{0}$ and $\ket{1}$ states:
 \begin{align*}
-  X\ket{0} = \ket{1} \, , \quad
-  X\ket{1} = \ket{0} \, .
+  X\ket{0} = \ket{1} \,, \quad
+  X\ket{1} = \ket{0} \,.
 \end{align*}
-So the $X_0 + X_1$ term drives amplitude flow among four basis states
-by flipping one qubit at a time. More precisely, for the initial state $\ket{00}$:
+So the $X_0 + X_1$ term drives amplitude flow among four basis states by flipping one qubit at a time. More precisely, for the initial state $\ket{00}$:
 \begin{gather*}
-  X_0\ket{00} = \ket{10} \, , \: \: X_1\ket{00} = \ket{01} \, , \\
-  (X_0 + X_1)\ket{00} = \ket{10} + \ket{01} \, .
+  X_0\ket{00} = \ket{10} \,, \: \: X_1\ket{00} = \ket{01} \,, \\
+  (X_0 + X_1)\ket{00} = \ket{10} + \ket{01} \,.
 \end{gather*}
 and for other basis states:
 \begin{align*}
-    (X_0 + X_1)\ket{01} = \ket{11} + \ket{00} \, , \\
-    (X_0 + X_1)\ket{10} = \ket{00} + \ket{11} \, , \\
-    (X_0 + X_1)\ket{11} = \ket{01} + \ket{10} \, .
+    (X_0 + X_1)\ket{01} = \ket{11} + \ket{00} \,, \\
+    (X_0 + X_1)\ket{10} = \ket{00} + \ket{11} \,, \\
+    (X_0 + X_1)\ket{11} = \ket{01} + \ket{10} \,.
 \end{align*}
 This means that for an arbitrary statevector in a two-qubit system
 \begin{align*}
-    \ket{\psi} = a\ket{00} + b\ket{01} + c\ket{10} + d\ket{11} \, ,
+    \ket{\psi} = a\ket{00} + b\ket{01} + c\ket{10} + d\ket{11}\,,
 \end{align*}
-the amplitudes of $\ket{00}$ and $\ket{11}$ can flow
-into the directions in $\ket{10}$ and $\ket{01}$, and the amplitudes of $\ket{01}$ and $\ket{10}$ will flow to directions $\ket{00}$ and $\ket{11}$ during time evolution. In this way, the $H_X$ term drives the initial amplitudes of the statevector to transfer and circulate among the basis-state directions $\ket{00}, \ket{01}, \ket{10}, \ket{11}$ during time evolution.\\
-
-In conclusion, the role of $H_X$ is to couple the four basis states by flipping a single qubit, causing the complex amplitudes to circulate and oscillate among these basis-state directions during time evolution.
+the $H_X$ term couples the amplitudes of $\ket{00}$ and $\ket{11}$ to those of $\ket{10}$ and $\ket{01}$,
+and vice versa. It thereby transfers amplitude among the basis states $\ket{00}, \ket{01}, \ket{10}, \ket{11}$ during time evolution.
 
 
 \vspace{\baselineskip}
 
 
 \section{Simulation Methods}
-
 \subsection{NumPy/SciPy Exact Simulation}
-The NumPy implementation is the reference calculation. It directly constructs
-the Pauli matrices, tensor-product operators, Hamiltonian matrix, and
-time-evolution operator. The core calculation is
+The NumPy implementation is the reference calculation. At the implementation level, it directly constructs the Pauli matrices, tensor-product operators, Hamiltonian matrix, and time-evolution operator. For each time value in the chosen grid, it evaluates the same evolution rule described above:
 \begin{align*}
-  U(t) = e^{-iHt} \, , \qquad  \ket{\psi(t)} = U(t)\ket{\psi(0)} \, .
+  U(t) = e^{-iHt} \,, \qquad  \ket{\psi(t)} = U(t)\ket{\psi(0)} \,.
 \end{align*}
-This method is direct and reliable for a two-qubit system because the
-Hamiltonian is only a $4 \times 4$ matrix.
-
-\vspace{\baselineskip}
+This method is direct and reliable for a two-qubit system because the Hamiltonian is only a $4 \times 4$ matrix.
 
 \subsection{Qiskit Statevector Simulation}
-The Qiskit implementation is used to reproduce the same statevector dynamics in a circuit representation. It represents the same Hamiltonian dynamics in circuit
-form. It uses
+The Qiskit implementation is used to reproduce the same expectation value curves in a circuit representation. Instead of directly applying the matrix exponential in the code, it represents the same operator $e^{-iHt}$ as a circuit evolution
+gate. It uses
 \begin{itemize}
   \item \texttt{SparsePauliOp} to define the Hamiltonian and observables,
-  \item \texttt{PauliEvolutionGate} to express time evolution as a circuit
-        operation,
+  \item \texttt{PauliEvolutionGate} to express time evolution as a circuit operation,
   \item \texttt{Statevector} to simulate the resulting circuit state.
 \end{itemize}
 The Qiskit implementation was reviewed against the NumPy reference and the intended project scope.
+
+\subsection{Numerical Validation}
+Both implementations check statevector norm preservation for all four initial states. The Qiskit results are also compared with the direct matrix-exponential reference for $\ev{Z_0}$, $\ev{Z_1}$, and $\ev{Z_0Z_1}$ across all four initial states at every sampled time point. The comparison uses a numerical tolerance of $10^{-10}$. The scripts also check the overlap of $\ev{Z_0}$ and $\ev{Z_1}$ for the aligned initial states and the qubit-exchange symmetry between the anti-aligned initial states discussed below.
 
 
 \vspace{\baselineskip}
 
 
 \section{Observables and Interpretation}
-
 The project calculates three observables:
 \begin{itemize}
-  \item $\ev{Z_0}(t)$: the $Z$-direction expectation value of the first qubit, measuring whether the first qubit is biased toward $\ket{0}$ or $\ket{1}$ , 
-  \item $\ev{Z_1}(t)$: the $Z$-direction expectation value of the second qubit, measuring whether the second qubit is biased toward $\ket{0}$ or $\ket{1}$ , 
+  \item $\ev{Z_0}(t)$: the $Z$-direction expectation value of the left logical qubit $q_0$, measuring whether that logical qubit is biased toward $\ket{0}$ or $\ket{1}$,
+  \item $\ev{Z_1}(t)$: the $Z$-direction expectation value of the right logical qubit $q_1$, measuring whether that logical qubit is biased toward $\ket{0}$ or $\ket{1}$,
   \item $\ev{Z_0Z_1}(t)$: a two-qubit correlation observable, measuring whether the two qubits are biased toward being aligned or anti-aligned.
 \end{itemize}
-These observables make the state evolution easier to interpret. Instead of
-only inspecting the full statevector, the plots show how measurable quantities
-change over time.
+These observables make the state evolution easier to interpret. Instead of only inspecting the full statevector, the plots show how measurable quantities change over time.
+
+Because the Qiskit expectation value curves agree with the NumPy reference within the numerical tolerance, only the NumPy plots are shown below to avoid duplication.
 
 \begin{figure}[htbp]
   \centering
@@ -202,79 +249,312 @@ change over time.
   \hfill
   \begin{minipage}{0.48\textwidth}
     \centering
-    \includegraphics[width=\linewidth]{Initial_01_expvl.png}
+    \includegraphics[width=\linewidth]{Initial_11_expvl.png}
     \vspace{0.3em}
-    {\small Initial state $\ket{01}$}
+    {\small Initial state $\ket{11}$}
   \end{minipage}
-  \caption{Expectation-value curves for initial states $\ket{00}$ and $\ket{01}$ from the NumPy exact simulation.}
-  \label{fig:numpy-initial-00-01}
+  \caption{expectation value curves for aligned initial states $\ket{00}$ and $\ket{11}$.}
+  \label{fig:numpy-initial-00-11}
 \end{figure}
 
 \begin{figure}[htbp]
   \centering
   \begin{minipage}{0.48\textwidth}
     \centering
-    \includegraphics[width=\linewidth]{Initial_10_expvl.png}
+    \includegraphics[width=\linewidth]{Initial_01_expvl.png}
     \vspace{0.3em}
-    {\small Initial state $\ket{10}$}
+    {\small Initial state $\ket{01}$}
   \end{minipage}
   \hfill
   \begin{minipage}{0.48\textwidth}
     \centering
-    \includegraphics[width=\linewidth]{Initial_11_expvl.png}
+    \includegraphics[width=\linewidth]{Initial_10_expvl.png}
     \vspace{0.3em}
-    {\small Initial state $\ket{11}$}
+    {\small Initial state $\ket{10}$}
   \end{minipage}
-  \caption{Expectation-value curves for initial states $\ket{10}$ and $\ket{11}$ from the NumPy exact simulation.}
-  \label{fig:numpy-initial-10-11}
+  \caption{expectation value curves for anti-aligned initial states $\ket{01}$ and $\ket{10}$.}
+  \label{fig:numpy-initial-01-10}
 \end{figure}
 
 \FloatBarrier
 
-Figures~\ref{fig:numpy-initial-00-01} and~\ref{fig:numpy-initial-10-11} show
-how the same Hamiltonian produces different expectation-value curves from
-different initial basis states.
+Figures~\ref{fig:numpy-initial-00-11} and~\ref{fig:numpy-initial-01-10} show how the same Hamiltonian produces different expectation value curves from different initial basis states.
 
-If a general two-qubit state is written as
+\paragraph{expectation value formulas.}
+For a general two-qubit time-evolved state
+\begin{align}
+  \ket{\psi(t)}
+  =a(t)\ket{00}+b(t)\ket{01}+c(t)\ket{10}+d(t)\ket{11},
+  \label{te-st}
+\end{align}
+the three observables can be interpreted through the probability weights of the basis-state components. The expectation value $\ev{Z_0}$ compares the total probability weight of states where the first qubit is $\ket{0}$ with those where it is $\ket{1}$, while $\ev{Z_1}$ makes the corresponding comparison for the second qubit:
+\begin{align}
+  \ev{Z_0}(t)
+  &=\nm{a(t)}+\nm{b(t)}-\nm{c(t)}-\nm{d(t)},
+  \label{evZ0}\\
+  \ev{Z_1}(t)
+  &=\nm{a(t)}-\nm{b(t)}+\nm{c(t)}-\nm{d(t)}.
+  \label{evZ1}
+\end{align}
+The correlation observable $\ev{Z_0Z_1}$ compares the aligned components $\ket{00},\ket{11}$ with the anti-aligned components
+$\ket{01} \,,\;\ket{10}$:
+\begin{align}
+  \ev{Z_0Z_1}(t) =  \underbrace{\nm{a(t)}+\nm{d(t)}}_{P_{\mathrm{aligned}}}
+  -\underbrace{\nm{b(t)}+\nm{c(t)}}_{P_{\mathrm{anti\text{-}aligned}}}.
+  \label{evZ0Z1}
+\end{align}
+These formulas are the basis for the curve comparisons below. The detailed symmetry relations between the four plots are derived later in this section.
+
+\subsection{Reasons for the Oscillatory Pattern of \texorpdfstring{$\ev{Z_0Z_1}$}{<Z0Z1>}}
+\paragraph{Reasons of oscillation}
+From Eq.~\eqref{evZ0Z1}, $\ev{Z_0Z_1}$ is the difference between the aligned and anti-aligned probability weights. Therefore, $\ev{Z_0Z_1}$ changes whenever probability weight is redistributed between the aligned states $\{\ket{00},\ket{11}\}$ and the anti-aligned states $\{\ket{01},\ket{10}\}$\,.
+
+The transverse-field term
+$$H_X=h(X_0+X_1)$$
+connects these two groups by flipping one qubit at a time:
+$$\{\ket{00} ,\, \ket{11}\} \; \longleftrightarrow \; \{\ket{01} ,\, \ket{10}\} \,.$$
+For example, if the system starts from an aligned state, amplitude initially develops in the anti-aligned basis-state directions. Consequently, $P_{\mathrm{aligned}}$ decreases,
+$P_{\mathrm{anti-aligned}}$ increases, and $\ev{Z_0Z_1}$ decreases.
+
+The same coupling also acts in the reverse direction. In this model, the bidirectional coupling and coherent unitary phase evolution cause the probability weight to be redistributed repeatedly between the aligned and anti-aligned sectors. Since $\ev{Z_0Z_1}$ is the difference between these two probability weights, it also repeatedly decreases and increases, producing an oscillatory curve.
+
+\paragraph{Reasons for oscillating in sinusoidal form}
+The Hamiltonian is a fixed $4 \times 4$ Hermitian matrix, and its energy eigenstates satisfy the time-independent Schrödinger equation (TISE):
 \begin{align*}
-  \ket{\psi}
-  = a\ket{00} + b\ket{01} + c\ket{10} + d\ket{11} \, ,
+  H\ket{E_k}=E_k\ket{E_k}\,.
 \end{align*}
-then the three observables can be interpreted through the probability weights
-of the basis-state components. The expectation value $\ev{Z_0}$ compares
-the total probability weight of states where the first qubit is $\ket{0}$ with
-those where it is $\ket{1}$:
+If the initial state is expanded as
 \begin{align*}
-  \ev{Z_0} = |a|^2 + |b|^2 - |c|^2 - |d|^2.
+  \ket{\psi(0)}=\sum_k c_k\ket{E_k}\,,
 \end{align*}
-Similarly, $\ev{Z_1}$ compares the corresponding weights for the second
-qubit:
+then its time evolution is
 \begin{align*}
-  \ev{Z_1} = |a|^2 - |b|^2 + |c|^2 - |d|^2.
+  \ket{\psi(t)} = e^{-iHt}\ket{\psi(0)} = \sum_k c_k e^{-iE_kt}\ket{E_k}\,.
 \end{align*}
-The correlation observable $\ev{Z_0Z_1}$ compares the aligned components
-$\ket{00}$ and $\ket{11}$ with the anti-aligned components $\ket{01}$ and
-$\ket{10}$:
+Substituting this expansion into the expectation value gives
 \begin{align*}
-  \ev{Z_0Z_1} = |a|^2 - |b|^2 - |c|^2 + |d|^2.
+  \ev{Z_0Z_1}(t) = \sum_{m,n} c_m^* c_n e^{i(E_m-E_n)t}
+  \bra{E_m}Z_0Z_1\ket{E_n}\,.
+\end{align*}
+The factor $e^{iE_mt}$ comes from $\bra{\psi(t)}$, while $e^{-iE_nt}$ comes from $\ket{\psi(t)}$, which causes the time-dependent terms containing phase products of the form:
+\begin{align*}
+  e^{i E_m t}e^{-i E_n t} = e^{-i(E_n-E_m)t}\,.
+\end{align*}
+Using Euler's formula,
+\begin{align*}
+  e^{-i\omega t} = \cos(\omega t) - i\sin(\omega t)\,,
+\end{align*}
+these phase products become sine- and cosine-type terms whose frequencies are determined by the energy differences
+$$\omega_{mn} = E_n - E_m \,.$$
+For these reasons, $\ev{Z_0Z_1}(t)$ is a finite combination of sine- and cosine-type terms. For the present initial states and observable, this combination produces the regular sinusoidal-type pattern seen in the numerical plots.
+
+\subsection{Symmetry and Position of the Curves}
+This subsection explains the following phenomena of the four expectation value plots above:
+\begin{enumerate}
+  \item For two-qubit states initially in an aligned state, the curves of $\ev{Z_0}$ and $\ev{Z_1}$ coincide in a single plot, and the coincident curves for $\ket{00}$ and $\ket{11}$ are symmetric about the horizontal axis across these two plots.
+  \item For states initially in an anti-aligned state, the $\ev{Z_0}$ and $\ev{Z_1}$ curves are symmetric about the horizontal axis within a single plot, while the $\ev{Z_0}$ and $\ev{Z_1}$ curves for $\ket{01}$ and $\ket{10}$ respectively present cross-plot symmetry about the horizontal axis.
+  \item In the plotted parameter setting, the $\ev{Z_0Z_1}$ curves remain above the zero-expectation axis for aligned initial states and below it for anti-aligned initial states. The aligned and anti-aligned curves are related by horizontal-axis reflection.
+\end{enumerate}
+Here ``horizontal axis'' refers to the zero-expectation line $\ev{O}=0$, “horizontal axis reflection” means sign reversal across the horizontal axis, rather than a reversal of the time direction.
+
+\subsubsection{Aligned initial states: \texorpdfstring{$\ket{00}$ and $\ket{11}$}{|00> and |11>}}
+\paragraph{Overlap of $\ev{Z_0}$ and $\ev{Z_1}$}
+For an evolved two-qubit state $\ket{\psi(t)}$ whose initial state is aligned ($\ket{00}$ or $\ket{11}$), we calculate its $\ev{Z_0}$ and $\ev{Z_1}$. Take the case where the initial state is $\ket{00}$, denote
+\begin{gather*}
+    \ket{\psi_{00}(t)} \; \text{ with } \: \ket{\psi_{00}(0)} = \ket{00}
+    \; \text{ when } \; t = 0 \,,\\
+    \ev{Z_0}_{00}(t) := \bra{\psi_{00}(t)}Z_0\ket{\psi_{00}(t)}\,,\quad
+    \ev{Z_0}_{00}(0) = \bra{\psi_{00}(0)}Z_0\ket{\psi_{00}(0)} = \bra{00}Z_0\ket{00}\,, \\
+    \ev{Z_1}_{00}(0) := \bra{\psi_{00}(0)}Z_1\ket{\psi_{00}(0)} =\bra{00}Z_1\ket{00}\,, \\
+\end{gather*}
+then we have:
+\begin{align*}
+    Z_0\ket{00} = +\ket{00} \,, \; \ev{Z_0}_{00}(0) =  +\braket{00}{00} = +1 \,, \\
+    Z_1\ket{00} = +\ket{00} \,, \; \ev{Z_1}_{00}(0) =  +\braket{00}{00} = +1 \,.
+\end{align*}
+Hence, we observe that the curves of $\ev{Z_0}$ and $\ev{Z_1}$ start at the same point $(0 \,,\, +1)$\,.
+
+To understand why the two curves remain overlapped during the whole time evolution, we then look at the time-dependent amplitudes directly.
+
+We look at the Schrödinger equation, substituting $\ket{\psi(t)}$ into the TDSE gives the amplitude equations:
+\begin{align*}
+  i\dot{a} &= Ja + hb + hc \,,\\
+  i\dot{b} &= ha - Jb + hd \,,\\
+  i\dot{c} &= ha - Jc + hd \,,\\
+  i\dot{d} &= hb + hc + Jd \,.
+\end{align*}
+We present the differential equations for $b(t)$ and $c(t)$ together for comparison:
+\begin{align*}
+    i\dot{b} &= ha - Jb + hd = -Jb + h(a + d) \,,\\
+    i\dot{c} &= ha - Jc + hd = -Jc + h(a + d) \,,
+\end{align*}
+which have the same differential equation structure:
+$$i\dot{x} = -Jx + h\left( a(t) + d(t) \right)\,.$$
+
+For the aligned initial state $\ket{00}$, the two amplitudes start from the same value:
+\begin{align*}
+  b(0) = c(0) = 0 \,.
+\end{align*}
+$b(t)$ and $c(t)$ satisfy the same 1st order time evolution ODE with the same initial value, so they remain equal throughout the time evolution, that is:
+$$ b(t) = c(t) \quad \forall \; t \geq 0 \,.$$
+As a result, 
+\begin{align*}
+  \nm{b(t)}=\nm{c(t)} \,.
+\end{align*}
+It follows that
+\begin{align*}
+  \ev{Z_0}(t) - \ev{Z_1}(t) &=
+  \nm{a(t)} + \nm{b(t)} - \nm{c(t)} - \nm{d(t)} - \left(\nm{a(t)} - \nm{b(t)} + \nm{c(t)} - \nm{d(t)}\right) \\ 
+  &= 2\left( \nm{b(t)} - \nm{c(t)} \right) = 0 \,, 
+\end{align*}
+so finally we get 
+\begin{align*}
+  \ev{Z_0}(t)=\ev{Z_1}(t) \quad \forall \; t \geq 0 \,,
+\end{align*}
+which clarifies why the two curves both start at $(0 \,,\, +1)\,$ and overlap throughout the whole time evolution.
+
+The same argument applies to the initial state $\ket{11}$. In this case,
+\begin{align*}
+  a(0) = b(0) = c(0) = 0 \,, \qquad  d(0)=1 \,,
+\end{align*}
+so the key condition $b(0)=c(0)$ still holds. Since $b(t)$ and $c(t)$ obey
+the same driven equation, they remain equal, as a consequence:
+\begin{align*}
+  \ev{Z_0}_{11}(t) = \ev{Z_1}_{11}(t) \quad \forall \; t\geq 0 \,.
+\end{align*}
+The two curves start from $-1$ rather than $+1$.
+
+\paragraph{Horizontal-axis reflection between $\ket{00}$ and $\ket{11}$.}
+The global bit-flip operation $X_0X_1$ maps $\ket{00}$ to $\ket{11}$ and leaves the Hamiltonian invariant:
+\begin{align*}
+  (X_0X_1)H(X_0X_1)=H.
+\end{align*}
+Under the same operation, the single-qubit $Z$ observables change sign:
+\begin{align*}
+  (X_0X_1)Z_0(X_0X_1)= - Z_0 \,,  \quad
+  (X_0X_1)Z_1(X_0X_1)=-Z_1\,.
+\end{align*}
+Thus the overlapped single-qubit curves for $\ket{11}$ are the sign-reversed versions of the corresponding curves for $\ket{00}$:
+\begin{align*}
+  \ev{Z_0}_{11}(t) = -\ev{Z_0}_{00}(t)\,, \quad
+  \ev{Z_1}_{11}(t) = -\ev{Z_1}_{00}(t)\,.
+\end{align*}
+This is the cross-plot horizontal-axis reflection visible between the $\ket{00}$ and $\ket{11}$ figures.
+
+\subsubsection{Anti-aligned initial states: \texorpdfstring{$\ket{01}$ and $\ket{10}$}{|01> and |10>}}
+
+\paragraph{Horizontal-axis reflection of $\ev{Z_0}$ and $\ev{Z_1}$ within each plot}
+For the anti-aligned case, take the initial state $\ket{01}$ as the example. The notation follows the same form of $\ket{00}$:
+\begin{align*}
+  Z_0\ket{01} &= +\ket{01} \,,\quad
+  \ev{Z_0}_{01}(0)=+\braket{01}{01}=+1 \,,\\
+  Z_1\ket{01} &= -\ket{01} \,,\quad
+  \ev{Z_1}_{01}(0)=-\braket{01}{01}=-1 \,.
+\end{align*}
+Thus $\ev{Z_0}_{01}$ and $\ev{Z_1}_{01}$ start at opposite points
+$(0 \,,\, +1)$ and $(0 \,,\, -1)$.
+
+Then we look at the time-dependent amplitudes. For the initial state $\ket{01}$, the key amplitudes for the within-plot sign symmetry start from the same value:
+\begin{align*}
+  a(0)=d(0)=0 \,.
+\end{align*}
+Their equations of motion are
+\begin{align*}
+    i\dot{a} &= Ja + h(b + c) \,,\\
+    i\dot{d} &= Jd + h(b + c) \,,
+\end{align*}
+which have the same differential equation structure:
+$$i\dot{x} = Jx + h\left( b(t) + c(t) \right)\,.$$
+
+$a(t)$ and $d(t)$ satisfy the same first-order time evolution ODE with the same initial value, so they remain equal throughout the time evolution, and their squared magnitudes remain equal as well:
+\begin{align*}
+   a(t)=d(t) \, \quad \Rightarrow \quad  \nm{a(t)}=\nm{d(t)} 
+   \quad \forall \; t \geq 0 \,.
+\end{align*}
+It follows that
+\begin{align*}
+  \ev{Z_0}_{01}(t) + \ev{Z_1}_{01}(t) &=
+  \nm{a(t)} + \nm{b(t)} - \nm{c(t)} - \nm{d(t)}
+  + \left( \nm{a(t)} - \nm{b(t)} + \nm{c(t)} - \nm{d(t)} \right)\\
+  &= 2\left( \nm{a(t)} - \nm{d(t)} \right) = 0 \,.
+\end{align*}
+Therefore,
+\begin{align*}
+  \ev{Z_0}_{01}(t) = - \ev{Z_1}_{01}(t) \quad \forall \; t \geq 0 \,.
+\end{align*}
+This explains why the two single-qubit curves in the $\ket{01}$ plot are reflected across the horizontal zero-expectation axis throughout the whole time evolution. 
+
+For $\ket{10}$, the different initial amplitude is $c(0)=1$ instead of $b(0)=1$, but the key condition $a(0)=d(0)=0$ is unchanged, so the same within-plot reflection argument also applies.
+
+\paragraph{Cross-plot reflection between $\ket{01}$ and $\ket{10}$.}
+The Hamiltonian is invariant under exchanging qubit 0 and qubit 1. This exchange maps $\ket{01}$ to $\ket{10}$ and interchanges $Z_0$ with $Z_1$. Hence,
+\begin{align*}
+  \ev{Z_0}_{01}(t) = \ev{Z_1}_{10}(t)\,, \quad
+  \ev{Z_1}_{01}(t) = \ev{Z_0}_{10}(t)\,.
+\end{align*}
+From the previous paragraph, we have:
+\begin{align*}
+    \ev{Z_0}_{01}(t)=-\ev{Z_1}_{01}(t) \,, \quad
+    \ev{Z_0}_{10}(t)=-\ev{Z_1}_{10}(t) \,.
+\end{align*}
+Combining these relations gives:
+\begin{align*}
+  \ev{Z_0}_{10}(t) = -\ev{Z_0}_{01}(t)\,, \quad
+  \ev{Z_1}_{10}(t) = -\ev{Z_1}_{01}(t)\,.
 \end{align*}
 
-The initial value of $\ev{Z_0Z_1}$ separates aligned and anti-aligned
-states:
+\subsubsection{Symmetry Relations of the \texorpdfstring{$\ev{Z_0Z_1}$}{<Z0Z1>} Curves}
 
-\begin{itemize}
-  \item $\ket{00}$ and $\ket{11}$ start with $\ev{Z_0Z_1}=+1$,
-  \item $\ket{01}$ and $\ket{10}$ start with $\ev{Z_0Z_1}=-1$.
-\end{itemize}
+The initial values separate the aligned and anti-aligned states:
+\begin{align*}
+  \ev{Z_0Z_1}_{00}(0) &= \ev{Z_0Z_1}_{11}(0) = +1\,,\\
+  \ev{Z_0Z_1}_{01}(0) &= \ev{Z_0Z_1}_{10}(0) = -1\,.
+\end{align*}
+Thus the aligned correlation curves begin in the upper region of the plots, whereas the anti-aligned correlation curves begin in the lower region.
 
-The model is symmetric under exchanging qubit 0 and qubit 1. This symmetry
-explains why $\ket{01}$ and $\ket{10}$ produce related curves with
-$\ev{Z_0}$ and $\ev{Z_1}$ interchanged.\\
+\paragraph{Overlap within the aligned and anti-aligned pairs.}
+The global bit-flip operation maps the basis initial states in pairs:
+\begin{align*}
+  (X_0X_1)\ket{00} &= \ket{11} \,, \quad
+  (X_0X_1)\ket{01} = \ket{10} \,,
+\end{align*}
+and it leaves both the Hamiltonian and the correlation observable unchanged:
+\begin{align*}
+  (X_0X_1)H(X_0X_1) &= H \,, \quad
+  (X_0X_1)Z_0Z_1(X_0X_1) = Z_0Z_1 \,.
+\end{align*}
+Thus the transformation preserves the time evolution and the measured correlation while mapping $\ket{00}$ to $\ket{11}$ and $\ket{01}$ to $\ket{10}$. The two aligned initial states consequently have the same correlation curve, and the two anti-aligned initial states also have the same correlation curve:
+\begin{align*}
+  \ev{Z_0Z_1}_{00}(t) &= \ev{Z_0Z_1}_{11}(t),\\
+  \ev{Z_0Z_1}_{01}(t) &= \ev{Z_0Z_1}_{10}(t).
+\end{align*}
 
-During time evolution, the transverse-field term $H_X$ drives the amplitudes to circulate among different basis-state directions, which in turn causes the expectation values involving Z to oscillate. For this reason, the plotted curves therefore show both the interaction structure defined by $Z_0Z_1$ and the effect of the transverse field $X_0 + X_1$.\\
+\paragraph{Horizontal-axis reflection between aligned and anti-aligned curves.}
+To establish the sign-reversal relation, define
+\begin{align*}
+  f_s(t) := \bra{s}U^\dagger(t)Z_0Z_1U(t)\ket{s}\,, \quad
+  s\in\{00,01,10,11\}\,.
+\end{align*}
+Since the four basis states form a complete basis,
+\begin{align*}
+  \sum_s f_s(t) = \operatorname{Tr} \! \left( U^\dagger(t) Z_0Z_1 U(t) \right) = \operatorname{Tr}(Z_0Z_1) = 0\,.
+\end{align*}
+Using the pair relations derived above,
+\begin{align*}
+  f_{00}(t) = f_{11}(t)\,, \quad f_{01}(t) = f_{10}(t)\,,
+\end{align*}
+we obtain
+\begin{align*}
+  2f_{00}(t) + 2f_{01}(t) = 0 \,.
+\end{align*}
+Therefore,
+\begin{align*}
+  \ev{Z_0Z_1}_{01}(t) &= -\ev{Z_0Z_1}_{00}(t)\,,\\
+  \ev{Z_0Z_1}_{10}(t) &= -\ev{Z_0Z_1}_{11}(t)\,.
+\end{align*}
+These relations describe the horizontal-axis reflection between the aligned and anti-aligned correlation curves. In the plotted parameter setting, the numerical results also show that the aligned curves remain above the horizontal zero-expectation axis and the anti-aligned curves remain below it.
 
-In this way, the plots show how the evolving amplitudes appear through physically interpretable $Z$-basis
-observables.
+In this way, the plots show how the evolving amplitudes appear through physically interpretable $Z$-basis observables.
 
 
 \vspace{\baselineskip}
@@ -286,14 +566,12 @@ The completed scope is:
   NumPy exact result $\rightarrow$ Qiskit statevector result $\rightarrow$
   numerical comparison $\rightarrow$ plots
 \end{center}
-The completed version intentionally does not include Qiskit Aer backends,
-noise models, shot-based execution, real hardware execution, or Trotter error
-analysis.
+The completed version intentionally does not include Qiskit Aer backends, noise models, shot-based execution, real hardware execution, or Trotter error analysis.
 
 Possible local extensions include:
 \begin{itemize}
   \item Trotter error analysis for comparing exact evolution with
-        product-formula approximations,
+    product-formula approximations,
   \item parameter sweeps over different $J$, $h$, and total evolution time,
   \item extension from two qubits to small spin chains,
   \item additional observables, such as entanglement entropy or state fidelity.
@@ -304,10 +582,6 @@ Possible local extensions include:
 
 
 \section{Summary}
-
-This project shows a complete learning path from a simple Hamiltonian model to
-two working simulations and numerical validation. The NumPy implementation
-provides the exact reference result, while the Qiskit implementation reproduces
-the same dynamics through statevector circuit simulation.
+This project shows a complete learning path from a simple Hamiltonian model to two working simulations and numerical validation. The NumPy implementation provides the exact reference result, while the Qiskit implementation reproduces the same tested expectation value results through statevector circuit simulation.
 
 \end{document}
