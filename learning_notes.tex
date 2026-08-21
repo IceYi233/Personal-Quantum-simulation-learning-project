@@ -204,21 +204,21 @@ and vice versa. It thereby transfers amplitude among the basis states $\ket{00},
 
 \section{Simulation Methods}
 \subsection{NumPy/SciPy Exact Simulation}
-The NumPy implementation is the reference calculation. At the implementation level, it directly constructs the Pauli matrices, tensor-product operators, Hamiltonian matrix, and time-evolution operator. For each time value in the chosen grid, it evaluates the same evolution rule described above:
+The NumPy implementation is a separate exact calculation. At the implementation level, it directly constructs the Pauli matrices, tensor-product operators, Hamiltonian matrix, and time-evolution operator. For each time value in the chosen grid, it evaluates the same evolution rule described above:
 \begin{align*}
   U(t) = e^{-iHt} \,, \qquad  \ket{\psi(t)} = U(t)\ket{\psi(0)} \,.
 \end{align*}
 This method is direct and reliable for a two-qubit system because the Hamiltonian is only a $4 \times 4$ matrix.
 
 \subsection{Qiskit Statevector Simulation}
-The Qiskit implementation is used to reproduce the same expectation value curves in a circuit representation. Instead of directly applying the matrix exponential in the code, it represents the same operator $e^{-iHt}$ as a circuit evolution
-gate. It uses
+The Qiskit implementation is used to reproduce the same expectation value curves in a circuit representation. In the circuit-result path, it represents the exact operator $e^{-iHt}$ with a circuit evolution gate and explicitly selects matrix-exponential synthesis. It uses
 \begin{itemize}
   \item \texttt{SparsePauliOp} to define the Hamiltonian and observables,
   \item \texttt{PauliEvolutionGate} to express time evolution as a circuit operation,
+  \item \texttt{MatrixExponential} to synthesize the exact evolution gate,
   \item \texttt{Statevector} to simulate the resulting circuit state.
 \end{itemize}
-The Qiskit implementation was reviewed against the NumPy reference and the intended project scope.
+The NumPy script provides a separate exact calculation. Within the Qiskit script, the circuit results are validated against an internal direct matrix-exponential reference constructed from the same Hamiltonian.
 
 \subsection{Numerical Validation}
 Both implementations check statevector norm preservation for all four initial states. The Qiskit results are also compared with the direct matrix-exponential reference for $\ev{Z_0}$, $\ev{Z_1}$, and $\ev{Z_0Z_1}$ across all four initial states at every sampled time point. The comparison uses a numerical tolerance of $10^{-10}$. The scripts also check the overlap of $\ev{Z_0}$ and $\ev{Z_1}$ for the aligned initial states and the qubit-exchange symmetry between the anti-aligned initial states discussed below.
@@ -236,7 +236,7 @@ The project calculates three observables:
 \end{itemize}
 These observables make the state evolution easier to interpret. Instead of only inspecting the full statevector, the plots show how measurable quantities change over time.
 
-Because the Qiskit expectation value curves agree with the NumPy reference within the numerical tolerance, only the NumPy plots are shown below to avoid duplication.
+The Qiskit circuit results agree with the internal direct matrix-exponential reference within the numerical tolerance. To avoid duplicating the displayed dynamics, only the NumPy plots are shown below.
 
 \begin{figure}[htbp]
   \centering
@@ -563,8 +563,9 @@ In this way, the plots show how the evolving amplitudes appear through physicall
 \section{Scope and Possible Extensions}
 The completed scope is:
 \begin{center}
-  NumPy exact result $\rightarrow$ Qiskit statevector result $\rightarrow$
-  numerical comparison $\rightarrow$ plots
+  NumPy exact simulation $\quad+\quad$
+  Qiskit statevector simulation with an internal exact comparison
+  $\rightarrow$ plots
 \end{center}
 The completed version intentionally does not include Qiskit Aer backends, noise models, shot-based execution, real hardware execution, or Trotter error analysis.
 
@@ -582,6 +583,6 @@ Possible local extensions include:
 
 
 \section{Summary}
-This project shows a complete learning path from a simple Hamiltonian model to two working simulations and numerical validation. The NumPy implementation provides the exact reference result, while the Qiskit implementation reproduces the same tested expectation value results through statevector circuit simulation.
+This project shows a complete learning path from a simple Hamiltonian model to two working simulations and numerical validation. The NumPy implementation provides a separate exact calculation, while the Qiskit implementation reproduces the model's expectation value dynamics through statevector circuit simulation and is validated against an internal direct matrix-exponential reference.
 
 \end{document}

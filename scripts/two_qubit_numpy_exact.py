@@ -32,6 +32,13 @@ initial_states = {
     "|11>": np.array([0, 0, 0, 1], dtype=complex),
 }
 
+expected_initial_values = {
+    "|00>": {"z0": 1.0, "z1": 1.0, "zz": 1.0},
+    "|01>": {"z0": 1.0, "z1": -1.0, "zz": -1.0},
+    "|10>": {"z0": -1.0, "z1": 1.0, "zz": -1.0},
+    "|11>": {"z0": -1.0, "z1": -1.0, "zz": 1.0},
+}
+
 output_dir = Path(__file__).resolve().parent.parent / "figures" / "numpy_exact"
 output_dir.mkdir(parents=True, exist_ok=True)
 plt.rcParams["savefig.directory"] = str(output_dir)
@@ -78,6 +85,14 @@ for state_label, psi0 in initial_states.items():
 for state_label, result in simulation_results.items():
     assert_close(result["norm"], 1.0, f"Norm check for {state_label}")
 
+for state_label, expected_values in expected_initial_values.items():
+    for observable_name, expected_value in expected_values.items():
+        assert_close(
+            simulation_results[state_label][observable_name][0],
+            expected_value,
+            f"Initial {observable_name} check for {state_label}",
+        )
+
 for state_label in ("|00>", "|11>"):
     z0_minus_z1 = simulation_results[state_label]["z0"] - simulation_results[state_label]["z1"]
     assert_close(z0_minus_z1, 0.0, f"<Z0> - <Z1> symmetry check for {state_label}")
@@ -98,7 +113,7 @@ for state_label, result in simulation_results.items():
     fig, ax = plt.subplots()
     manager = getattr(fig.canvas, "manager", None)
     if manager is not None and hasattr(manager, "set_window_title"):
-        manager.set_window_title(f"Initial state {state_label}, J=1.0, h=0.5")
+        manager.set_window_title(f"Initial state {state_label}, J={J}, h={h}")
 
     ax.plot(times, result["z0"], label="<Z0>", linestyle="--")
     ax.plot(times, result["z1"], label="<Z1>", alpha=0.6)

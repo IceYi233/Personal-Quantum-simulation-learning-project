@@ -6,6 +6,7 @@ import numpy as np
 from qiskit import QuantumCircuit
 from qiskit.circuit.library import PauliEvolutionGate
 from qiskit.quantum_info import SparsePauliOp, Statevector
+from qiskit.synthesis import MatrixExponential
 from scipy.linalg import expm
 from scipy.sparse import SparseEfficiencyWarning
 
@@ -17,8 +18,9 @@ warnings.filterwarnings("ignore", category=SparseEfficiencyWarning)
 J = 1.0
 h = 0.5
 
-# Qiskit Pauli labels follow the same displayed basis order used here:
-# "ZI" acts on the left qubit in |q0 q1>, and "IZ" acts on the right qubit.
+# Qiskit Pauli labels are ordered by circuit qubits as |q1 q0>.
+# This project calls the left logical qubit q0 and the right logical qubit q1,
+# so "ZI" is project Z0 and "IZ" is project Z1.
 HAMILTONIAN = SparsePauliOp.from_list(
     [
         ("ZZ", J),
@@ -40,6 +42,13 @@ INITIAL_STATES = {
     "|11>": "11",
 }
 
+EXPECTED_INITIAL_VALUES = {
+    "|00>": {"z0": 1.0, "z1": 1.0, "zz": 1.0},
+    "|01>": {"z0": 1.0, "z1": -1.0, "zz": -1.0},
+    "|10>": {"z0": -1.0, "z1": 1.0, "zz": -1.0},
+    "|11>": {"z0": -1.0, "z1": -1.0, "zz": 1.0},
+}
+
 TIMES = np.linspace(0, 10, 200)
 TOL = 1e-10
 OUTPUT_DIR = Path(__file__).resolve().parent.parent / "figures" / "qiskit_statevector"
@@ -47,6 +56,8 @@ OUTPUT_DIR = Path(__file__).resolve().parent.parent / "figures" / "qiskit_statev
 
 def computational_basis_circuit(state_bits):
     circuit = QuantumCircuit(2)
+    # The project writes state bits from left to right as q0 q1, but Qiskit
+    # circuit qubit 0 is the right-hand bit, so reverse the bits before mapping.
     for qubit_index, bit in enumerate(reversed(state_bits)):
         if bit == "1":
             circuit.x(qubit_index)
@@ -55,7 +66,12 @@ def computational_basis_circuit(state_bits):
 
 def evolution_circuit(state_bits, time):
     circuit = computational_basis_circuit(state_bits)
-    circuit.append(PauliEvolutionGate(HAMILTONIAN, time=time), [0, 1])
+    evolution_gate = PauliEvolutionGate(
+        HAMILTONIAN,
+        time=time,
+        synthesis=MatrixExponential(),
+    )
+    circuit.append(evolution_gate, [0, 1])
     return circuit
 
 
@@ -132,6 +148,14 @@ def run_numerical_checks(qiskit_results, exact_results):
     for state_label, result in qiskit_results.items():
         assert_close(result["norm"], 1.0, f"Norm check for {state_label}")
 
+    for state_label, expected_values in EXPECTED_INITIAL_VALUES.items():
+        for observable_name, expected_value in expected_values.items():
+            assert_close(
+                qiskit_results[state_label][observable_name][0],
+                expected_value,
+                f"Initial {observable_name} check for {state_label}",
+            )
+
     for state_label, result in qiskit_results.items():
         for observable_name in ("z0", "z1", "zz"):
             assert_close(
@@ -163,7 +187,7 @@ def save_figures(results):
         fig, ax = plt.subplots()
         manager = getattr(fig.canvas, "manager", None)
         if manager is not None and hasattr(manager, "set_window_title"):
-            manager.set_window_title(f"Qiskit circuit initial state {state_label}, J=1.0, h=0.5")
+            manager.set_window_title(f"Qiskit circuit initial state {state_label}, J={J}, h={h}")
 
         ax.plot(TIMES, result["z0"], label="<Z0>", linestyle="--")
         ax.plot(TIMES, result["z1"], label="<Z1>", alpha=0.6)
