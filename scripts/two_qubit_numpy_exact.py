@@ -6,7 +6,6 @@ from pathlib import Path
 # Pauli matrices
 I = np.array([[1, 0], [0, 1]], dtype=complex)
 X = np.array([[0, 1], [1, 0]], dtype=complex)
-Y = np.array([[0, -1j], [1j, 0]], dtype=complex)
 Z = np.array([[1, 0], [0, -1]], dtype=complex)
 
 # Tensor product helper
@@ -114,6 +113,9 @@ for state_label, result in simulation_results.items():
     manager = getattr(fig.canvas, "manager", None)
     if manager is not None and hasattr(manager, "set_window_title"):
         manager.set_window_title(f"Initial state {state_label}, J={J}, h={h}")
+
+    ax.axhline(y=0, color="black", linewidth=1.0)
+    ax.set_ylim(-1.05, 1.05)
 
     ax.plot(times, result["z0"], label="<Z0>", linestyle="--")
     ax.plot(times, result["z1"], label="<Z1>", alpha=0.6)

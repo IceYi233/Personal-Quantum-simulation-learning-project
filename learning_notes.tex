@@ -236,7 +236,7 @@ The project calculates three observables:
 \end{itemize}
 These observables make the state evolution easier to interpret. Instead of only inspecting the full statevector, the plots show how measurable quantities change over time.
 
-The Qiskit circuit results agree with the internal direct matrix-exponential reference within the numerical tolerance. To avoid duplicating the displayed dynamics, only the NumPy plots are shown below.
+The Qiskit circuit results agree with the internal direct matrix-exponential reference within the numerical tolerance. To avoid showing the same curves twice, only the NumPy plots are shown below.
 
 \begin{figure}[htbp]
   \centering
@@ -583,6 +583,6 @@ Possible local extensions include:
 
 
 \section{Summary}
-This project shows a complete learning path from a simple Hamiltonian model to two working simulations and numerical validation. The NumPy implementation provides a separate exact calculation, while the Qiskit implementation reproduces the model's expectation value dynamics through statevector circuit simulation and is validated against an internal direct matrix-exponential reference.
+This project shows a complete learning path from a simple Hamiltonian model to two working simulations and numerical validation. The NumPy implementation provides a separate exact calculation, while the Qiskit implementation reproduces how the model's expectation values change over time through statevector circuit simulation and is validated against an internal direct matrix-exponential reference.
 
 \end{document}

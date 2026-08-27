@@ -189,6 +189,9 @@ def save_figures(results):
         if manager is not None and hasattr(manager, "set_window_title"):
             manager.set_window_title(f"Qiskit circuit initial state {state_label}, J={J}, h={h}")
 
+        ax.axhline(y=0, color="black", linewidth=1.0)
+        ax.set_ylim(-1.05, 1.05)
+
         ax.plot(TIMES, result["z0"], label="<Z0>", linestyle="--")
         ax.plot(TIMES, result["z1"], label="<Z1>", alpha=0.6)
         ax.plot(TIMES, result["zz"], label="<Z0Z1>")
