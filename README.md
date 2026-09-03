@@ -32,6 +32,7 @@ The main goal is to build a small but complete quantum simulation workflow:
 |-- requirements.txt                    # pip dependencies
 |-- environment.yml                     # Conda environment wrapper around requirements.txt
 |-- learning_notes.tex                  # Conceptual learning notes and model interpretation
+|-- learning_notes.pdf                  # Compiled reading copy
 `-- README.md                           # Main project description
 ```
 
@@ -329,8 +330,8 @@ Git repository setup, commit management, and upload operations.
 The author reviewed, tested, and edited the AI-assisted code and project structure, 
 and takes responsibility for the final implementation, results, and repository content.
 
-For detailed learning notes and model interpretation, see [learning_notes.tex](learning_notes.tex).
-
+For detailed learning notes and model interpretation, read the [compiled PDF](learning_notes.pdf).
+The canonical LaTeX source is available in [learning_notes.tex](learning_notes.tex).
 
 ## Completion Status
 
