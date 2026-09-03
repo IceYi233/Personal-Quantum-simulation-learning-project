@@ -18,8 +18,3 @@ Thumbs.db
 venv/
 .env/
 *.egg-info/
-
-# Output files
-figures/*.pdf
-tmp/
-临时材料存放处/

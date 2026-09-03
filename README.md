@@ -2,6 +2,9 @@
 
 Two-qubit Hamiltonian simulation using NumPy exact evolution and Qiskit statevector circuits.
 
+> **AI assistance:** AI was used for the initial project structure, documentation framework, and NumPy/Qiskit code development.
+> See [AI Assistance Disclosure](#ai-assistance-disclosure) for details.
+
 ## Project Goal
 
 This project simulates the time evolution of a two-qubit spin-chain model. It contains two completed implementations: 
@@ -100,10 +103,10 @@ python scripts/two_qubit_numpy_exact.py
 ```
 The script simulates the four basis initial states, calculates `<Z0>`, `<Z1>`, and `<Z0Z1>`, and checks the initial values. 
 It saves four figures in `figures/numpy_exact/`, 
-which can be compared with figures produced by Qiskit script to check whether both implementations translate the model accurately
+which can be compared with figures produced by the Qiskit script to check whether both implementations translate the model accurately
 and yield the same curve shapes, initial values, and symmetry properties.
 
-Meanwhile, since the Numpy script uses only ordinary NumPy/SciPy matrices, 
+Meanwhile, since the NumPy script uses only ordinary NumPy/SciPy matrices,
 it provides another model definition without depending on Qiskit’s conventions and 
 serves as a standalone reproducible version independent of Qiskit.
 
@@ -200,10 +203,10 @@ This project should be run in a project-specific Python environment.
 PyCharm may use a different interpreter from the `python` command in a normal terminal, 
 so always check which Python is active before running the script.
 
-Recommended Python version:
+Recommended and verified Python version:
 
 ```text
-Python 3.11
+Python 3.11.15
 ```
 
 ### Option 1: Create a Conda Environment (Recommended for Reproduction)
@@ -306,15 +309,16 @@ both scripts save the PNG files without displaying plot windows and then finish 
 
 ## Requirements
 
-Project requirements:
-- `numpy`
-- `scipy`
-- `matplotlib`
-- `qiskit`
+Project environment versions:
+- `Python 3.11.15`
+- `NumPy 2.4.4`
+- `SciPy 1.17.1`
+- `Matplotlib 3.10.9`
+- `Qiskit 2.4.1`
 
-The NumPy exact simulation uses `numpy`, `scipy`, and `matplotlib`. 
-The Qiskit circuit simulation uses `numpy` for numerical calculations, `scipy` for the internal matrix-exponential reference, 
-`matplotlib` for plotting, and the core `qiskit` package for circuit construction and statevector simulation.
+The NumPy exact simulation uses `NumPy`, `SciPy`, and `Matplotlib`.
+The Qiskit circuit simulation uses `NumPy` for numerical calculations, `SciPy` for the internal matrix-exponential reference,
+`Matplotlib` for plotting, and the core `Qiskit` package for circuit construction and statevector simulation.
 
 
 ## AI Assistance Disclosure
