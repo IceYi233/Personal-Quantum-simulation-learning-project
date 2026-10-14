@@ -5,22 +5,25 @@ Two-qubit Hamiltonian simulation using NumPy exact evolution and Qiskit statevec
 > **AI assistance:** AI was used for the initial project structure, documentation framework, and NumPy/Qiskit code development.
 > See [AI Assistance Disclosure](#ai-assistance-disclosure) for details.
 
-## Project Goal
+## Project Overview
 
-This project simulates the time evolution of a two-qubit spin-chain model. It contains two completed implementations: 
+This project is an AI-assisted introductory self-learning project in quantum computing. 
+It aims to understand quantum simulation workflow through mathematical reasoning, code interpretations and numerical validation.
+It simulates the time evolution of a two-qubit spin-chain model in two versions: 
 a NumPy/SciPy exact statevector simulation and a Qiskit circuit-based statevector simulation.
 
-The completed project scope is limited to exact NumPy simulation and Qiskit statevector simulation. 
-It does not include Qiskit Aer backends, noise models, shot-based sampling, or Trotter error analysis.
-
-The main goal is to build a small but complete quantum simulation workflow:
-
+The main goal is to build a small quantum simulation workflow:
 - define a Hamiltonian
 - choose initial quantum states
 - compute time evolution
 - calculate expectation values
 - plot and interpret the results
 - reproduce the same model using Qiskit statevector circuits
+
+For the scope of this project and extensions, see [Completion Status](#completion-status) and [Possible Extensions](#possible-extensions).
+
+For detailed learning notes and model interpretation, read the [compiled PDF](learning_notes.pdf).
+The canonical LaTeX source is available in [learning_notes.tex](learning_notes.tex).
 
 ## Repository Structure
 
@@ -41,46 +44,40 @@ The main goal is to build a small but complete quantum simulation workflow:
 
 ## Model
 
-The Hamiltonian used in this project is
+The Hamiltonian of this project is
 
 ```text
 H = J Z0Z1 + h(X0 + X1)
 ```
 
 where:
-
 - `Z0Z1` describes the interaction between the two qubits
 - `X0 + X1` describes the transverse field acting on both qubits
 - `J = 1.0` is the interaction strength
 - `h = 0.5` is the transverse-field strength
 
-The exact time evolution is calculated as
+The time evolution is calculated as
 
 ```text
-|ψ(t)> = exp(-iHt)|ψ(0)>
+|ψ(t)> = exp(-iHt) |ψ(0)>
 ```
 
 The current observables are:
-
 - `<Z0>(t)`: expectation value of qubit 0 in the Z direction
 - `<Z1>(t)`: expectation value of qubit 1 in the Z direction
 - `<Z0Z1>(t)`: two-qubit correlation observable
 
 ### Qubit Labeling Convention
+Generally, Qiskit writes a two-qubit basis state as `|q_1q_0>`, 
+where `q_1` is the left bit, and `q_0` is the right bit.
 
-This project writes state strings from left to right as `|q0 q1>`:
-qubit 0 is on the left and qubit 1 is on the right. 
-For example, `|01>` means q0 = 0 and q1 = 1.
-
-Generally, Qiskit uses the opposite ordering: in Qiskit labels and state strings,
-the right position corresponds to circuit qubit 0 and the left position corresponds to circuit qubit 1.
-Therefore:
-
-- project `q0` (left) = Qiskit circuit qubit 1
-- project `q1` (right) = Qiskit circuit qubit 0
+This project writes state strings from left to right as `|q0 q1>`, with
+qubit 0 on the left and qubit 1 on the right. 
+Relative to Qiskit's convention, the labels in this project are mapped as:
+- `q_0` (project) = `q_1` (Qiskit) 
+- `q_1` (project) = `q_0` (Qiskit) 
 
 and the observables map to Qiskit Pauli labels as:
-
 - `<Z0>` → `"ZI"`
 - `<Z1>` → `"IZ"`
 - `<Z0Z1>` → `"ZZ"`
@@ -89,9 +86,8 @@ and the observables map to Qiskit Pauli labels as:
 
 ### Reason to Include a NumPy Version
 
-The NumPy script provides a direct implementation of the project model. 
-It defines the Pauli matrices as NumPy arrays, constructs the two-qubit Hamiltonian with tensor products, 
-and calculates the standard matrix-based form of quantum time evolution
+The NumPy script implements the project model directly by applying NumPy arrays and tensor products to construct 
+the Pauli matrices and two-qubit Hamiltonian respectively, then calculating the states time evolution compiled by the Hamiltonian matrix.
 ```text
 U(t) = exp(-iHt)
 ```
@@ -101,19 +97,19 @@ After creating and activating the project environment, run:
 ```bash
 python scripts/two_qubit_numpy_exact.py
 ```
-The script simulates the four basis initial states, calculates `<Z0>`, `<Z1>`, and `<Z0Z1>`, and checks the initial values. 
-It saves four figures in `figures/numpy_exact/`, 
-which can be compared with figures produced by the Qiskit script to check whether both implementations translate the model accurately
-and yield the same curve shapes, initial values, and symmetry properties.
+The NumPy script runs the simulation from each of the four basis states. It calculates `<Z0>`, `<Z1>`, `<Z0Z1>` 
+while checking their values at the start of the simulation. 
 
-Meanwhile, since the NumPy script uses only ordinary NumPy/SciPy matrices,
-it provides another model definition without depending on Qiskit’s conventions and 
-serves as a standalone reproducible version independent of Qiskit.
+The four plots are saved in `figures/numpy_exact/`, which can be compared with the Qiskit plots to check 
+how the model is implemented: whether the curve shapes, initial values, and symmetry properties of two versions agree with each other.
+
+This version defines the Hamiltonian only with NumPy/SciPy matrices, providing an independent reference 
+for the comparison with the Qiskit circuit version shown later.
 
 ### Construction
 
-The NumPy version directly constructs the Pauli matrices, tensor-product operators, Hamiltonian matrix, and time-evolution operator. 
-It then evaluates the expectation values for four computational-basis initial states:
+The NumPy version directly constructs the Pauli matrices, tensor-product operators, Hamiltonian matrix, 
+and time-evolution operator, then evaluates the expectation values for four basis initial states:
 
 - `|00>`
 - `|01>`
@@ -149,17 +145,17 @@ figures/numpy_exact
 
 ### Observations
 
-The Hamiltonian `H = J Z0Z1 + h(X0 + X1)` is unchanged when qubit 0 and qubit 1 are exchanged. 
+The Hamiltonian `H = J Z0Z1 + h(X0 + X1)` remains unchanged when qubit 0 and qubit 1 are exchanged. 
 Therefore, the initial states `|01>` and `|10>` give symmetric expectation-value curves, with `<Z0>` and `<Z1>` interchanged.
 
 The observable `<Z0Z1>` measures the correlation between the two qubits. It starts from `+1` for the aligned states `|00>` and `|11>`, 
-and from `-1` for the anti-aligned states `|01>` and `|10>`. During the time evolution, `<Z0Z1>` oscillates while 
-preserving the qualitative distinction between initially aligned and anti-aligned configurations in this parameter setting.
+and from `-1` for the anti-aligned states `|01>` and `|10>`. Under this `J`, `h` setting, `<Z0Z1>` oscillates during the time evolution, 
+and the corresponding curves of aligned initial states remain positive, while those of anti-aligned initial states remain negative.
 
 ## Stage 2: Qiskit Circuit Simulation
 
-The Qiskit version calculates the same exact time evolution using Qiskit circuits, `SparsePauliOp`, 
-and `PauliEvolutionGate` with `MatrixExponential` synthesis, followed by statevector simulation.
+The Qiskit version calculates the same time evolution using statevector simulation, Qiskit circuits, 
+`SparsePauliOp`, `PauliEvolutionGate` with `MatrixExponential` synthesis.
 
 The current script is:
 
@@ -173,35 +169,37 @@ The output figures are saved in:
 figures/qiskit_statevector
 ```
 
-This stage uses the same model, initial states, observables and time grid as the NumPy exact simulation. 
-The script also checks that the Qiskit expectation-value results match an internal direct matrix-exponential reference 
-constructed in the same Qiskit script to within numerical tolerance.
+The Qiskit script uses the same initial states, observables and time grid as the NumPy version, 
+with an internal direct matrix-exponential reference based on the same Hamiltonian.
+It also checks whether the `<Z_0>`, `<Z_1>`, `<Z_0Z_1>` calculated by matrix and circuit simulation 
+match each other within a numerical tolerance.
 
 ## Numerical Checks
 
-Both scripts include numerical checks with a tolerance of `1e-10`.
+Both scripts make numerical checks with a tolerance of `1e-10`.
 
 The NumPy script checks:
 
-- statevector norm preservation for each initial state
-- the expected values of `<Z0>`, `<Z1>`, and `<Z0Z1>` at `t = 0` for all four initial states
+- statevector normalization for each initial state
+- expected values of `<Z0>`, `<Z1>`, and `<Z0Z1>` at `t = 0` for all four initial basis states
 - symmetry between `<Z0>` and `<Z1>` for the aligned initial states `|00>` and `|11>`
 - swap symmetry of `<Z0>` and `<Z1>` between the anti-aligned initial states `|01>` and `|10>`
 
-The Qiskit script checks the same properties and also compares its expectation-value results against 
-an internal direct matrix-exponential reference for `<Z0>`, `<Z1>`, and `<Z0Z1>` across all four initial states.
+The Qiskit script preforms the same checks and additionally compares these results with the internal direct implementation 
+for `<Z0>`, `<Z1>`, and `<Z0Z1>` of all four initial basis states.
 
-If a check fails, the script raises an assertion error with the maximum numerical error. A successful Qiskit run prints:
-
+A successful Qiskit run prints:
 ```text
 Qiskit circuit numerical checks passed.
 ```
 
+If a check fails, the script will report an `AssertionError` with the maximum absolute error of the failed check. 
+
 ## How to Run
 
-This project should be run in a project-specific Python environment. 
-PyCharm may use a different interpreter from the `python` command in a normal terminal, 
-so always check which Python is active before running the script.
+This project should be run in a Python environment specifically arranged for the project. 
+PyCharm might be used as an interpreter different from the `python` command in a normal terminal, 
+so before running the script, double-check which Python interpreter is active.
 
 Recommended and verified Python version:
 
@@ -211,7 +209,7 @@ Python 3.11.15
 
 ### Option 1: Create a Conda Environment (Recommended for Reproduction)
 
-This is the recommended approach for a new machine or a clean reproduction of the project.
+This method is recommended if you have a new machine or require a clean reproduction of the project.
 
 Create the environment:
 
@@ -239,9 +237,9 @@ python scripts/two_qubit_qiskit_statevector.py
 
 ### Option 2: Use an Existing Python Environment
 
-Use this if you already have a Python environment with a compatible Python version.
+This method is recommended if you have a Python environment with a compatible Python version already.
 
-Activate it first, then install the dependencies:
+Activate it first, then install the following dependencies:
 
 ```bash
 pip install -r requirements.txt
@@ -320,7 +318,6 @@ The NumPy exact simulation uses `NumPy`, `SciPy`, and `Matplotlib`.
 The Qiskit circuit simulation uses `NumPy` for numerical calculations, `SciPy` for the internal matrix-exponential reference,
 `Matplotlib` for plotting, and the core `Qiskit` package for circuit construction and statevector simulation.
 
-
 ## AI Assistance Disclosure
 
 AI was used for the following items:
@@ -330,14 +327,17 @@ AI was used for the following items:
 
 The author independently handled the conceptual learning, documentation review and revision, 
 Git repository setup, commit management, and upload operations.
+The author also read, tested the scripts, observed their results, and adjusted the repository’s structure.
 
-The author reviewed, tested, and edited the AI-assisted code and project structure, 
-and takes responsibility for the final implementation, results, and repository content.
-
-For detailed learning notes and model interpretation, read the [compiled PDF](learning_notes.pdf).
-The canonical LaTeX source is available in [learning_notes.tex](learning_notes.tex).
+The author takes responsibility for the final scripts with their results, and repository content.
 
 ## Completion Status
+
+The project includes 
+- NumPy/SciPy exact simulation
+- Qiskit statevector simulation
+- numerical validation
+- result plots
 
 The NumPy implementation provides a separate exact calculation of the model. 
 The Qiskit circuit simulation produces the model's time-evolution results and is validated within numerical tolerance 
@@ -345,10 +345,34 @@ against an internal direct matrix-exponential reference constructed within the Q
 
 ## Possible Extensions
 
-The current project is complete within its intended scope. 
-Possible local extensions that are not included in this version are:
+Possible extensions not included in this version are:
 
+- Direct comparison of Qiskit circuit results with NumPy matrix simulation (to check the precision of Qiskit implementation)
 - Trotter error analysis for comparing exact evolution with product-formula approximations.
 - Parameter sweeps over different `J`, `h`, and total evolution time.
 - Extension from two qubits to small spin chains.
 - Additional observables, such as entanglement entropy or state fidelity.
+- Qiskit Aer simulations with shot-based sampling and noise models.
+- Execution on real quantum hardware.
+
+## Usage
+
+This repository is maintained as a record of the author's personal learning
+and development process.
+
+Personal, non-commercial use for private learning is permitted, including
+downloading, running, and locally modifying the contents of this repository.
+
+Redistribution of the original or modified contents, publication of derivative
+versions, incorporation into other public projects, and commercial use are not
+authorized. No permission is granted to reproduce or reuse repository contents
+in teaching materials, publications, or other publicly distributed materials.
+
+Copyright © 2026 Yutong Liu (GitHub: [IceYi233](https://github.com/IceYi233)).
+All rights reserved.
+
+## Contributions
+
+This repository is maintained solely by the author as a personal learning
+project. External contributions, pull requests, and proposals for project
+changes are not accepted.
