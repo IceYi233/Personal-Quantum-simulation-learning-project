@@ -7,11 +7,12 @@ from qiskit import QuantumCircuit
 from qiskit.circuit.library import PauliEvolutionGate
 from qiskit.quantum_info import SparsePauliOp, Statevector
 from qiskit.synthesis import MatrixExponential
-from scipy.linalg import expm
 from scipy.sparse import SparseEfficiencyWarning
 
-
-warnings.filterwarnings("ignore", category=SparseEfficiencyWarning)
+if __package__:
+    from .two_qubit_numpy_matrix import simulate_numpy_matrix
+else:
+    from two_qubit_numpy_matrix import simulate_numpy_matrix
 
 
 # Model parameters for H = J Z0Z1 + h(X0 + X1)
@@ -51,7 +52,7 @@ EXPECTED_INITIAL_VALUES = {
 
 TIMES = np.linspace(0, 10, 200)
 TOL = 1e-10
-OUTPUT_DIR = Path(__file__).resolve().parent.parent / "figures" / "qiskit_statevector"
+OUTPUT_DIR = Path(__file__).resolve().parent.parent / "figures" / "qiskit_circuit"
 
 
 def computational_basis_circuit(state_bits):
@@ -73,10 +74,6 @@ def evolution_circuit(state_bits, time):
     )
     circuit.append(evolution_gate, [0, 1])
     return circuit
-
-
-def exact_hamiltonian_matrix():
-    return HAMILTONIAN.to_matrix()
 
 
 def assert_close(values, expected, check_name):
@@ -101,7 +98,14 @@ def simulate_qiskit_circuits():
 
         for time in TIMES:
             circuit = evolution_circuit(state_bits, time)
-            state = Statevector.from_instruction(circuit)
+            # Exact synthesis can emit harmless sparse-format efficiency warnings.
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore",
+                    category=SparseEfficiencyWarning,
+                    module=r"scipy\.sparse\.linalg\..*",
+                )
+                state = Statevector.from_instruction(circuit)
 
             norm_values.append(np.linalg.norm(state.data))
             z0_values.append(expectation_value(state, OBSERVABLES["z0"]))
@@ -118,33 +122,7 @@ def simulate_qiskit_circuits():
     return results
 
 
-def simulate_exact_matrix_reference():
-    hamiltonian = exact_hamiltonian_matrix()
-    results = {}
-
-    for state_label, state_bits in INITIAL_STATES.items():
-        psi0 = Statevector.from_label(state_bits).data
-        z0_values = []
-        z1_values = []
-        zz_values = []
-
-        for time in TIMES:
-            psi_t = expm(-1j * hamiltonian * time) @ psi0
-            state = Statevector(psi_t)
-            z0_values.append(expectation_value(state, OBSERVABLES["z0"]))
-            z1_values.append(expectation_value(state, OBSERVABLES["z1"]))
-            zz_values.append(expectation_value(state, OBSERVABLES["zz"]))
-
-        results[state_label] = {
-            "z0": np.array(z0_values),
-            "z1": np.array(z1_values),
-            "zz": np.array(zz_values),
-        }
-
-    return results
-
-
-def run_numerical_checks(qiskit_results, exact_results):
+def run_numerical_checks(qiskit_results, numpy_results):
     for state_label, result in qiskit_results.items():
         assert_close(result["norm"], 1.0, f"Norm check for {state_label}")
 
@@ -156,27 +134,76 @@ def run_numerical_checks(qiskit_results, exact_results):
                 f"Initial {observable_name} check for {state_label}",
             )
 
+    max_observable_error = 0.0
     for state_label, result in qiskit_results.items():
         for observable_name in ("z0", "z1", "zz"):
+            numpy_values = numpy_results[state_label][observable_name]
             assert_close(
                 result[observable_name],
-                exact_results[state_label][observable_name],
-                f"Qiskit vs exact check for {state_label} {observable_name}",
+                numpy_values,
+                f"Qiskit vs NumPy check for {state_label} {observable_name}",
+            )
+            max_observable_error = max(
+                max_observable_error,
+                float(np.max(np.abs(result[observable_name] - numpy_values))),
             )
 
+    # Aligned initial states: within-plot coincidence.
     for state_label in ("|00>", "|11>"):
         z0_minus_z1 = qiskit_results[state_label]["z0"] - qiskit_results[state_label]["z1"]
         assert_close(z0_minus_z1, 0.0, f"<Z0> - <Z1> symmetry check for {state_label}")
 
+    # Aligned initial states: cross-plot sign reflection.
+    for observable_name in ("z0", "z1"):
+        assert_close(
+            qiskit_results["|11>"][observable_name],
+            -qiskit_results["|00>"][observable_name],
+            f"Aligned cross-plot {observable_name} sign-reflection check for |11> and |00>",
+        )
+
+    # Anti-aligned initial states: within-plot sign reflection.
+    for state_label in ("|01>", "|10>"):
+        assert_close(
+            qiskit_results[state_label]["z0"],
+            -qiskit_results[state_label]["z1"],
+            f"Anti-aligned within-plot <Z0> = -<Z1> check for {state_label}",
+        )
+
+    # Anti-aligned initial states: cross-plot sign reflection.
+    for observable_name in ("z0", "z1"):
+        assert_close(
+            qiskit_results["|10>"][observable_name],
+            -qiskit_results["|01>"][observable_name],
+            f"Anti-aligned cross-plot {observable_name} sign-reflection check for |10> and |01>",
+        )
+
+    # Correlation curves coincide within the aligned and anti-aligned pairs.
     assert_close(
-        qiskit_results["|01>"]["z0"],
-        qiskit_results["|10>"]["z1"],
-        "<Z0> for |01> and <Z1> for |10> swap symmetry check",
+        qiskit_results["|00>"]["zz"],
+        qiskit_results["|11>"]["zz"],
+        "<Z0Z1> coincidence check for |00> and |11>",
     )
     assert_close(
-        qiskit_results["|01>"]["z1"],
-        qiskit_results["|10>"]["z0"],
-        "<Z1> for |01> and <Z0> for |10> swap symmetry check",
+        qiskit_results["|01>"]["zz"],
+        qiskit_results["|10>"]["zz"],
+        "<Z0Z1> coincidence check for |01> and |10>",
+    )
+
+    # Aligned and anti-aligned correlation curves are sign-reversed.
+    assert_close(
+        qiskit_results["|01>"]["zz"],
+        -qiskit_results["|00>"]["zz"],
+        "<Z0Z1> sign-reflection check for |01> and |00>",
+    )
+    assert_close(
+        qiskit_results["|10>"]["zz"],
+        -qiskit_results["|11>"]["zz"],
+        "<Z0Z1> sign-reflection check for |10> and |11>",
+    )
+
+    print(
+        f"Max Qiskit vs NumPy observable error: {max_observable_error:.3e} "
+        f"(tolerance {TOL:.1e})"
     )
 
 
@@ -203,7 +230,7 @@ def save_figures(results):
         fig.tight_layout()
 
         state_bits = state_label.strip("|>")
-        output_path = OUTPUT_DIR / f"Initial_{state_bits}_expvl.png"
+        output_path = OUTPUT_DIR / f"Initial_{state_bits}_expvl_circuit.png"
         fig.savefig(output_path, dpi=200)
         print(f"Saved {output_path}")
 
@@ -215,8 +242,8 @@ def save_figures(results):
 
 def main():
     qiskit_results = simulate_qiskit_circuits()
-    exact_results = simulate_exact_matrix_reference()
-    run_numerical_checks(qiskit_results, exact_results)
+    numpy_results = simulate_numpy_matrix(J, h, TIMES)
+    run_numerical_checks(qiskit_results, numpy_results)
     print("Qiskit circuit numerical checks passed.")
     save_figures(qiskit_results)
 

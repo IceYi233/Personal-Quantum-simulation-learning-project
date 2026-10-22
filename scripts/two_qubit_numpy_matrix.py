@@ -1,0 +1,198 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.linalg import expm
+from pathlib import Path
+
+# Pauli matrices
+I = np.array([[1, 0], [0, 1]], dtype=complex)
+X = np.array([[0, 1], [1, 0]], dtype=complex)
+Z = np.array([[1, 0], [0, -1]], dtype=complex)
+
+# Tensor product helper
+def kron(a, b):
+    return np.kron(a, b)
+
+# Two-qubit operators
+X0 = kron(X, I)
+X1 = kron(I, X)
+Z0 = kron(Z, I)
+Z1 = kron(I, Z)
+Z0Z1 = kron(Z, Z)
+
+# Hamiltonian: H = J Z0Z1 + h(X0 + X1)
+J = 1.0
+h = 0.5
+
+initial_states = {
+    "|00>": np.array([1, 0, 0, 0], dtype=complex),
+    "|01>": np.array([0, 1, 0, 0], dtype=complex),
+    "|10>": np.array([0, 0, 1, 0], dtype=complex),
+    "|11>": np.array([0, 0, 0, 1], dtype=complex),
+}
+
+expected_initial_values = {
+    "|00>": {"z0": 1.0, "z1": 1.0, "zz": 1.0},
+    "|01>": {"z0": 1.0, "z1": -1.0, "zz": -1.0},
+    "|10>": {"z0": -1.0, "z1": 1.0, "zz": -1.0},
+    "|11>": {"z0": -1.0, "z1": -1.0, "zz": 1.0},
+}
+
+output_dir = Path(__file__).resolve().parent.parent / "figures" / "numpy_matrix"
+
+times = np.linspace(0, 10, 200)
+tol = 1e-10
+
+
+def assert_close(values, expected, check_name):
+    values = np.asarray(values)
+    expected = np.asarray(expected)
+    max_error = np.max(np.abs(values - expected))
+    assert max_error < tol, f"{check_name} failed: max error = {max_error:.3e}"
+
+
+def simulate_numpy_matrix(J, h, times):
+    """Return the independent matrix reference without plotting or saving files."""
+    H = J * Z0Z1 + h * (X0 + X1)
+    simulation_results = {}
+
+    for state_label, psi0 in initial_states.items():
+        z0_values = []
+        z1_values = []
+        zz_values = []
+        norm_values = []
+
+        for t in times:
+            U = expm(-1j * H * t)
+            psi_t = U @ psi0
+            norm_values.append(np.linalg.norm(psi_t))
+
+            ev_Z0 = np.vdot(psi_t, Z0 @ psi_t).real
+            ev_Z1 = np.vdot(psi_t, Z1 @ psi_t).real
+            ev_ZZ = np.vdot(psi_t, Z0Z1 @ psi_t).real
+
+            z0_values.append(ev_Z0)
+            z1_values.append(ev_Z1)
+            zz_values.append(ev_ZZ)
+
+        simulation_results[state_label] = {
+            "z0": np.array(z0_values),
+            "z1": np.array(z1_values),
+            "zz": np.array(zz_values),
+            "norm": np.array(norm_values),
+        }
+
+    return simulation_results
+
+
+def run_numerical_checks(simulation_results):
+    for state_label, result in simulation_results.items():
+        assert_close(result["norm"], 1.0, f"Norm check for {state_label}")
+
+    for state_label, expected_values in expected_initial_values.items():
+        for observable_name, expected_value in expected_values.items():
+            assert_close(
+                simulation_results[state_label][observable_name][0],
+                expected_value,
+                f"Initial {observable_name} check for {state_label}",
+            )
+
+    # Aligned initial states: within-plot coincidence.
+    for state_label in ("|00>", "|11>"):
+        z0_minus_z1 = simulation_results[state_label]["z0"] - simulation_results[state_label]["z1"]
+        assert_close(z0_minus_z1, 0.0, f"<Z0> - <Z1> symmetry check for {state_label}")
+
+    # Aligned initial states: cross-plot sign reflection.
+    for observable_name in ("z0", "z1"):
+        assert_close(
+            simulation_results["|11>"][observable_name],
+            -simulation_results["|00>"][observable_name],
+            f"Aligned cross-plot {observable_name} sign-reflection check for |11> and |00>",
+        )
+
+    # Anti-aligned initial states: within-plot sign reflection.
+    for state_label in ("|01>", "|10>"):
+        assert_close(
+            simulation_results[state_label]["z0"],
+            -simulation_results[state_label]["z1"],
+            f"Anti-aligned within-plot <Z0> = -<Z1> check for {state_label}",
+        )
+
+    # Anti-aligned initial states: cross-plot sign reflection.
+    for observable_name in ("z0", "z1"):
+        assert_close(
+            simulation_results["|10>"][observable_name],
+            -simulation_results["|01>"][observable_name],
+            f"Anti-aligned cross-plot {observable_name} sign-reflection check for |10> and |01>",
+        )
+
+    # Correlation curves coincide within the aligned and anti-aligned pairs.
+    assert_close(
+        simulation_results["|00>"]["zz"],
+        simulation_results["|11>"]["zz"],
+        "<Z0Z1> coincidence check for |00> and |11>",
+    )
+    assert_close(
+        simulation_results["|01>"]["zz"],
+        simulation_results["|10>"]["zz"],
+        "<Z0Z1> coincidence check for |01> and |10>",
+    )
+
+    # Aligned and anti-aligned correlation curves are sign-reversed.
+    assert_close(
+        simulation_results["|01>"]["zz"],
+        -simulation_results["|00>"]["zz"],
+        "<Z0Z1> sign-reflection check for |01> and |00>",
+    )
+    assert_close(
+        simulation_results["|10>"]["zz"],
+        -simulation_results["|11>"]["zz"],
+        "<Z0Z1> sign-reflection check for |10> and |11>",
+    )
+
+
+def save_figures(simulation_results):
+    output_dir.mkdir(parents=True, exist_ok=True)
+    plt.rcParams["savefig.directory"] = str(output_dir)
+    figures_to_save = []
+
+    for state_label, result in simulation_results.items():
+        fig, ax = plt.subplots()
+        manager = getattr(fig.canvas, "manager", None)
+        if manager is not None and hasattr(manager, "set_window_title"):
+            manager.set_window_title(f"Initial state {state_label}, J={J}, h={h}")
+
+        ax.axhline(y=0, color="black", linewidth=1.0)
+        ax.set_ylim(-1.05, 1.05)
+
+        ax.plot(times, result["z0"], label="<Z0>", linestyle="--")
+        ax.plot(times, result["z1"], label="<Z1>", alpha=0.6)
+        ax.plot(times, result["zz"], label="<Z0Z1>")
+        ax.set_xlabel("time")
+        ax.set_ylabel("expectation value")
+        ax.set_title(f"NumPy matrix evolution from {state_label}")
+        ax.legend()
+        ax.grid(True)
+        fig.tight_layout()
+
+        state_bits = state_label.strip("|>")
+        figures_to_save.append((fig, output_dir / f"Initial_{state_bits}_expvl_matrix.png"))
+
+    for fig, output_path in figures_to_save:
+        fig.savefig(output_path, dpi=200)
+        print(f"Saved {output_path}")
+
+    if plt.get_backend().lower() != "agg":
+        plt.show()
+    else:
+        plt.close("all")
+
+
+def main():
+    simulation_results = simulate_numpy_matrix(J, h, times)
+    run_numerical_checks(simulation_results)
+    print("Numerical checks passed.")
+    save_figures(simulation_results)
+
+
+if __name__ == "__main__":
+    main()

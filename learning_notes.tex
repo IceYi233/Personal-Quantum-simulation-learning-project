@@ -4,8 +4,9 @@
 \usepackage{amsmath}
 \numberwithin{equation}{section}
 \usepackage{amssymb}
+\usepackage{mathtools}
 \usepackage{graphicx}
-\graphicspath{{figures/numpy_exact/}}
+\graphicspath{{figures/numpy_matrix/}}
 \usepackage{placeins}
 \usepackage{float}
 \usepackage[hidelinks]{hyperref}
@@ -30,7 +31,7 @@
 \maketitle
 
 \begin{abstract}
-These notes summarize the learning process behind the time evolution of a two-qubit spin-chain model. The project implements this model using two different methods: NumPy/SciPy exact statevector calculation and Qiskit circuit-based statevector simulation. Each script has numerical checks, and the Qiskit version additionally includes an internal matrix-exponential reference to compare with the circuit results. 
+These notes summarize the learning process behind the time evolution of a two-qubit spin-chain model. The project implements this model using two different methods: NumPy/SciPy exact statevector calculation and Qiskit circuit-based statevector simulation. Each script has inside numerical checks of normalization, initial expectation values, and symmetry relations. The Qiskit version additionally performs a cross-script numerical comparison of its circuit results with the NumPy matrix results.
 
 This project aims to understand the running principles of the model, the role of each Hamiltonian term, the meaning and the time evolution of the observables, and the numerical checks in two implementations.
 \end{abstract}
@@ -41,12 +42,12 @@ This project studies the time evolution of a two-qubit spin-chain model using Ha
   \item Time evolution for a two-qubit quantum system based on a Hamiltonian
   \item Statevector representation of the four basis states
   \item Exact matrix-exponential simulation with NumPy/SciPy
-  \item Expectation value calculation for the observables $Z_0$, $Z_1$, and $Z_0Z_1$
   \item Statevector circuit simulation with Qiskit
-  \item Comparison between the matrix-based reference result and the circuit representation within the Qiskit script
+  \item Numerical verification of the symmetry relations among the expectation value curves
+  \item Numerical comparison between NumPy matrix results and Qiskit circuit results
 \end{itemize}
 
-The project system contains only two qubits, so each statevectors has four components and the Hamiltonian is a $4 \times 4$ matrix, which makes the project easier for direct learning, numerical verification and reasoning step checking.
+The project system contains only two qubits, so each statevector has four components and the Hamiltonian is a $4 \times 4$ matrix, which makes the project easier for direct learning, numerical verification and reasoning step checking.
 
 
 
@@ -209,13 +210,14 @@ the $H_X$ term connects the aligned pair \{$\ket{00} \,,\, \ket{11}$\} with the 
 
 
 \section{Simulation Methods}
-\subsection{NumPy Exact Simulation}
+\subsection{NumPy Exact Matrix Simulation}
 The NumPy script realizes an exact calculation by directly constructing the Pauli matrices, tensor-product operators, Hamiltonian matrix, and time-evolution operator. For each time value in the chosen grid, it evaluates the same evolution rule described above:
 \begin{align*}
   U(t) = e^{-iHt} \,, \qquad  \ket{\psi(t)} = U(t)\ket{\psi(0)} \,.
 \end{align*}
+The results of NumPy script are encapsulated in a separate function which serves as a reference for Qiskit.
 
-\subsection{Qiskit Statevector Simulation}
+\subsection{Qiskit Circuit Statevector Simulation}
 The Qiskit script reproduces the same expectation value curves of the NumPy version but in a circuit representation. In the circuit implementation, it represents the exact operator $e^{-iHt}$ with a circuit evolution gate and explicitly selects matrix-exponential synthesis. It uses
 \begin{itemize}
   \item \texttt{SparsePauliOp} to define the Hamiltonian and observables
@@ -223,19 +225,17 @@ The Qiskit script reproduces the same expectation value curves of the NumPy vers
   \item \texttt{MatrixExponential} as a synthesis option for the exact evolution gate
   \item \texttt{Statevector} to simulate the resulting circuit state
 \end{itemize}
-Additionally, the circuit results are compared with a direct matrix-exponential reference based on the same Hamiltonian inside this script.
+
 
 \subsection{Numerical Validation}
-Both the NumPy and Qiskit versions perform several numerical checks:
+Both the NumPy and Qiskit versions perform several numerical checks with a tolerance of $10^{-10}$:
 \begin{itemize}
-    \item \textbf{Statevector normalization}\, Check whether the norm of each initial basis state remains $1$ during the whole time evolution.
+    \item \textbf{Statevector normalization}\,  For each initial basis state, the evolved statevector has a norm of $1$ at every time point.
     \item \textbf{Initial expectation value}\, For $\ev{Z_0}$, $\ev{Z_1}$ and $\ev{Z_0Z_1}$\,, check whether these values at $t = 0$ match the expected ones for each initial basis state.
-    \item \textbf{Symmetry}\, For coincidence of $\ev{Z_0}$, $\ev{Z_1}$ curves in aligned initial states case and symmetry of $\ev{Z_0}$, $\ev{Z_1}$ curves in anti-aligned initial states case, both scripts confirm these relations by independently checking whether the maximum absolute difference over all sampled times is below $10^{-10}$\,.
+    \item \textbf{Symmetry}\, For each pair of $Z$ expectation value curves related by symmetric relationships mentioned in Section~5.2, both scripts confirm these relations by checking whether the maximum absolute difference over all time points is under the numerical tolerance.
 \end{itemize}
-The Qiskit version also makes an internal check whether the absolute differences between $\ev{Z_0}$, $\ev{Z_1}$, $\ev{Z_0Z_1}$ calculated by direct matrix-exponential and circuit simulation are below a numerical tolerance of $10^{-10}$\,.
 
-
-
+The Qiskit version also compares its three $Z$ expectation values with the NumPy results for all four initial states at all time points. Each comparison requires a maximum absolute difference below $10^{-10}$. After these checks pass, the script prints out the largest difference between the Qiskit and NumPy observable results across all time points.
 
 
 
@@ -247,13 +247,15 @@ The project calculates three observables:
   \item $\ev{Z_0Z_1}(t)$: a two-qubit correlation observable, measuring whether the two qubits are biased toward being aligned or anti-aligned
 \end{itemize}
 
-The figures below are plots from the NumPy simulation, used to visualize the time evolution of the model and relationships among the observables.
+The figures below are plots from the NumPy simulation, used to visualize the time evolution of the model and relationships among the observables. 
+
+Since these results from Qiskit agree with the NumPy reference within the numerical tolerance, only the NumPy plots are shown.
 
 \begin{figure}[H]
   \centering
   \begin{minipage}{0.8\textwidth}
     \centering
-    \includegraphics[width=\linewidth]{Initial_00_expvl.png}
+    \includegraphics[width=\linewidth]{Initial_00_expvl_matrix.png}
     \par\vspace{0.3em}
     {\small Initial state $\ket{00}$}
   \end{minipage}
@@ -262,7 +264,7 @@ The figures below are plots from the NumPy simulation, used to visualize the tim
 
   \begin{minipage}{0.8\textwidth}
     \centering
-    \includegraphics[width=\linewidth]{Initial_11_expvl.png}
+    \includegraphics[width=\linewidth]{Initial_11_expvl_matrix.png}
     \par\vspace{0.3em}
     {\small Initial state $\ket{11}$}
   \end{minipage}
@@ -274,7 +276,7 @@ The figures below are plots from the NumPy simulation, used to visualize the tim
   \centering
   \begin{minipage}{0.8\textwidth}
     \centering
-    \includegraphics[width=\linewidth]{Initial_01_expvl.png}
+    \includegraphics[width=\linewidth]{Initial_01_expvl_matrix.png}
     \par\vspace{0.3em}
     {\small Initial state $\ket{01}$}
   \end{minipage}
@@ -283,7 +285,7 @@ The figures below are plots from the NumPy simulation, used to visualize the tim
 
   \begin{minipage}{0.8\textwidth}
     \centering
-    \includegraphics[width=\linewidth]{Initial_10_expvl.png}
+    \includegraphics[width=\linewidth]{Initial_10_expvl_matrix.png}
     \par\vspace{0.3em}
     {\small Initial state $\ket{10}$}
   \end{minipage}
@@ -322,7 +324,7 @@ When $\ev{Z_0Z_1}$ is positive, the two qubits are more likely to be aligned; an
 
 The transverse-field term
 \begin{align*}
-    H_X=h(X_0+X_1)
+    H_X = h(X_0+X_1)
 \end{align*}
 connects these two pairs by flipping one qubit at a time:
 \begin{align*}
@@ -442,7 +444,7 @@ so we still have $b(0)=c(0)$. Since $b(t)$ and $c(t)$ obey the same evolution ru
 The two curves start from $-1$ rather than $+1$.
 
 \paragraph{Horizontal-axis reflection between $\ket{00}$ and $\ket{11}$}
-The global bit-flip operation $X_0X_1$ maps $\ket{00}$ to $\ket{11}$ and leaves the Hamiltonian invariant:
+The operator $X_0X_1$ maps $\ket{00}$ to $\ket{11}$ by flipping both two qubits at one time and leaves the Hamiltonian invariant:
 \begin{align*}
   (X_0 X_1) H (X_0 X_1) = H \,.
 \end{align*}
@@ -530,16 +532,16 @@ The initial values separate the aligned and anti-aligned states:
 Thus the $\ev{Z_0Z_1}$ curves of aligned initial states begin in the upper region of the plots, whereas the curves of anti-aligned initial states begin in the lower region.
 
 \paragraph{Coincidence of correlation curves within the aligned and anti-aligned pairs}
-The global bit-flip operation maps the basis initial states in pairs:
+The operator $X_0X_1$ maps the basis initial states as follows:
 \begin{align*}
   (X_0X_1)\ket{00} = \ket{11} \,, \quad (X_0X_1)\ket{01} = \ket{10} \,,
 \end{align*}
 and it leaves both the Hamiltonian and the $Z_0Z_1$ operator unchanged:
 \begin{align*}
-  (X_0X_1)H(X_0X_1) &= H \,, \quad
+  (X_0X_1)H(X_0X_1) = H \,, \quad
   (X_0X_1)Z_0Z_1(X_0X_1) = Z_0Z_1 \,.
 \end{align*}
-Because $X_0X_1$ leaves $H$ invariant, it also commutes with $U(t) = e^{-iHt}$\,. As a result, this operator keeps the time evolution and $\ev{Z_0Z_1}$ unchanged while mapping $\ket{00}$ to $\ket{11}$ and $\ket{01}$ to $\ket{10}$. The two aligned initial states consequently have the same curve of $\ev{Z_0Z_1}$ \,, as do the anti-aligned initial states:
+Since $X_0X_1$ leaves $H$ invariant, it also commutes with $U(t) = e^{-iHt}$\,. As a result, this operator keeps the time evolution and $\ev{Z_0Z_1}$ unchanged while mapping $\ket{00}$ to $\ket{11}$ and $\ket{01}$ to $\ket{10}$. The two aligned initial states consequently have the same curve of $\ev{Z_0Z_1}$ \,, as do the anti-aligned initial states:
 \begin{subequations}
     \begin{align}
     \ev{Z_0Z_1}_{00}(t) &= \ev{Z_0Z_1}_{11}(t) \,, \label{aligned_ev eq.}\\
@@ -595,19 +597,26 @@ These relations describe the horizontal-axis reflection of $\ev{Z_0Z_1}$ curve b
 
 \section{Scope and Possible Extensions}
 The completed scope is:
-\begin{center}
-  NumPy exact simulation $\; +\;$
-  Qiskit statevector simulation with internal comparison $\rightarrow$ plots
-\end{center}
+\begin{align*}
+\begin{array}{ccc}
+  \text{NumPy exact matrix simulation}
+  & \xrightarrow{\hspace{0.7cm}} & \text{NumPy plots} \\[0.5em]
+  \Big\uparrow \; {\text{numerical comparison}}
+  & \Longrightarrow & {\text{same plots}} \; \Big\updownarrow \\[0.5em]
+  \text{Qiskit circuit statevector simulation}
+  & \xrightarrow{\hspace{0.7cm}} & \text{Qiskit plots}
+\end{array}
+\end{align*}
+
 Possible local extensions include:
 \begin{itemize}
-  \item Direct comparison of Qiskit circuit results with NumPy matrix simulation to check the precision of Qiskit implementation
   \item Trotter error analysis for comparing exact evolution with
     product-formula approximations
   \item Parameter sweeps over different $J$, $h$, and total evolution time
   \item Extension from two qubits to small spin chains
   \item Additional observables, such as entanglement entropy or state fidelity
 \end{itemize}
+
 
 
 
